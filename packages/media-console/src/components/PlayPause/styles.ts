@@ -13,7 +13,7 @@ export const styles = StyleSheet.create({
     zIndex: 99999,
   },
   playContainer: {
-    width: '10%',
+    width: '35%',
     alignItems: 'center',
   },
   play: {},

@@ -7,7 +7,7 @@ interface LoaderProps {}
 export const Loader = ({}: LoaderProps) => {
   return (
     <View style={styles.container}>
-      <ActivityIndicator />
+      <ActivityIndicator color={'tomato'} size={'large'} />
     </View>
   );
 };

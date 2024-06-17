@@ -21,7 +21,8 @@ export const styles = StyleSheet.create({
   text: {
     backgroundColor: 'transparent',
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 18,
+    fontWeight: '600',
     textAlign: 'center',
   },
   seekBarContainer: {

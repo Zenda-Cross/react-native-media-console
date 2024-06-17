@@ -7,6 +7,7 @@ export const styles = StyleSheet.create({
   timerText: {
     backgroundColor: 'transparent',
     color: '#FFF',
-    fontSize: 11,
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

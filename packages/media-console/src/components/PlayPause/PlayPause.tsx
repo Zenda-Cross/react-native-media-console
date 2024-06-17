@@ -1,9 +1,16 @@
-import React, {createRef} from 'react';
-import {Image, Platform, TouchableHighlight} from 'react-native';
-import {Control} from '../Control';
-import {NullControl} from '../NullControl';
-import type {VideoAnimations} from '../../types';
-import {styles} from './styles';
+import React, { createRef } from "react";
+import {
+  Image,
+  Platform,
+  TouchableHighlight,
+  TouchableOpacity,
+} from "react-native";
+import { Control } from "../Control";
+import { NullControl } from "../NullControl";
+import type { VideoAnimations } from "../../types";
+import { styles } from "./styles";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { FontAwesome6 } from "@expo/vector-icons";
 
 export const playPauseRef = createRef<TouchableHighlight>();
 
@@ -19,13 +26,13 @@ interface PlayPauseProps {
   onPressRewind: () => void;
 }
 
-const play = require('../../assets/img/play.png');
-const pause = require('../../assets/img/pause.png');
-const rewind = require('../../assets/img/rewind.png');
-const forward = require('../../assets/img/forward.png');
+const play = require("../../assets/img/play.png");
+const pause = require("../../assets/img/pause.png");
+const rewind = require("../../assets/img/rewind.png");
+const forward = require("../../assets/img/forward.png");
 
 export const PlayPause = ({
-  animations: {AnimatedView, ...animations},
+  animations: { AnimatedView, ...animations },
   disablePlayPause,
   disableSeekButtons,
   paused,
@@ -47,14 +54,18 @@ export const PlayPause = ({
 
   return (
     <AnimatedView
-      pointerEvents={'box-none'}
-      style={[styles.container, animatedStyles, animations.controlsOpacity]}>
+      pointerEvents={"box-none"}
+      style={[styles.container, animatedStyles, animations.controlsOpacity]}
+    >
       {!disableSeekButtons ? (
         <Control
           disabled={!showControls}
           callback={onPressRewind}
-          resetControlTimeout={resetControlTimeout}>
-          <Image source={rewind} resizeMode={'contain'} style={styles.rewind} />
+          resetControlTimeout={resetControlTimeout}
+        >
+          <TouchableOpacity onPress={onPressRewind}>
+            <MaterialIcons name="replay-10" size={70} color="white" />
+          </TouchableOpacity>
         </Control>
       ) : null}
       <Control
@@ -63,19 +74,21 @@ export const PlayPause = ({
         resetControlTimeout={resetControlTimeout}
         style={styles.playContainer}
         controlRef={playPauseRef}
-        {...(Platform.isTV ? {hasTVPreferredFocus: showControls} : {})}>
-        <Image source={source} resizeMode={'contain'} style={styles.play} />
+        {...(Platform.isTV ? { hasTVPreferredFocus: showControls } : {})}
+      >
+        <TouchableOpacity onPress={togglePlayPause}>
+          <FontAwesome6 name={paused ? "play" : "pause"} size={60} color="white" />
+        </TouchableOpacity>
       </Control>
       {!disableSeekButtons ? (
         <Control
           disabled={!showControls}
           callback={onPressForward}
-          resetControlTimeout={resetControlTimeout}>
-          <Image
-            source={forward}
-            resizeMode={'contain'}
-            style={styles.rewind}
-          />
+          resetControlTimeout={resetControlTimeout}
+        >
+          <TouchableOpacity onPress={onPressForward}>
+            <MaterialIcons name="forward-10" size={70} color="white" />
+          </TouchableOpacity>
         </Control>
       ) : null}
     </AnimatedView>

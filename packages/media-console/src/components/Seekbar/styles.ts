@@ -6,18 +6,21 @@ export const styles = StyleSheet.create({
     height: 28,
     marginLeft: 20,
     marginRight: 20,
+    marginBottom: 10,
   },
   track: {
     backgroundColor: '#333',
-    height: 1,
+    height: 6,
     position: 'relative',
     top: 14,
     width: '100%',
+    borderRadius: 3,
   },
   fill: {
     backgroundColor: '#FFF',
-    height: 1,
+    height: 6,
     width: '100%',
+    borderRadius: 3,
   },
   handle: {
     position: 'absolute',
@@ -30,7 +33,7 @@ export const styles = StyleSheet.create({
     position: 'relative',
     top: 8,
     left: -5,
-    height: 12,
-    width: 12,
+    height: 19,
+    width: 19,
   },
 });
