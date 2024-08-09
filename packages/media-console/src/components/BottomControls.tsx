@@ -111,13 +111,13 @@ export const BottomControls = ({
         source={require('../assets/img/bottom-vignette.png')}
         style={[styles.column]}
         imageStyle={[styles.vignette]}>
+        <SafeAreaView style={styles.seekBarContainer}>
+          {seekbarControl}
+        </SafeAreaView>
         <SafeAreaView style={[styles.row, _styles.bottomControlGroup]}>
           {timerControl}
           <Title title={title} />
           {fullscreenControl}
-        </SafeAreaView>
-        <SafeAreaView style={styles.seekBarContainer}>
-          {seekbarControl}
         </SafeAreaView>
       </ImageBackground>
     </AnimatedView>
@@ -136,6 +136,6 @@ const _styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginLeft: 12,
     marginRight: 12,
-    marginBottom: 0,
+    marginBottom: 8,
   },
 });

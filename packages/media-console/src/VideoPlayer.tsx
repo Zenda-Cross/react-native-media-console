@@ -107,7 +107,7 @@ const AnimatedVideoPlayer = (
   const [currentTime, setCurrentTime] = useState(0);
   const [error, setError] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [buffering,setBuffering]=useState(false)
+  const [buffering, setBuffering] = useState(false);
 
   const videoRef = props.videoRef || _videoRef;
 
@@ -128,7 +128,7 @@ const AnimatedVideoPlayer = (
     if (!seeking) {
       setControlTimeout();
     }
-    setCurrentTime(obj.currentTime);
+    setCurrentTime(obj.seekTime);
     console.log(obj);
 
     if (typeof onSeek === 'function') {
@@ -346,8 +346,18 @@ const AnimatedVideoPlayer = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTime, duration, seekerWidth, setSeekerPosition]);
 
+  // set current time when seeking
   useEffect(() => {
-    if (showControls ) {
+    if (seeking && seekerPosition && seekerWidth && duration) {
+      const percent = seekerPosition / seekerWidth;
+      const newTime = duration * percent;
+      setCurrentTime(newTime);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeking, seekerPosition]);
+
+  useEffect(() => {
+    if (showControls) {
       animations.showControlAnimation();
       setControlTimeout();
       typeof events.onShowControls === 'function' && events.onShowControls();
@@ -396,18 +406,15 @@ const AnimatedVideoPlayer = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
   const rewind = () => {
     const newTime = currentTime - rewindTime;
     videoRef?.current?.seek(newTime);
-  }
+  };
 
   const forward = () => {
     const newTime = currentTime + rewindTime;
     videoRef?.current?.seek(newTime);
-  }
-
- 
+  };
 
   return (
     <PlatformSupport
@@ -420,14 +427,14 @@ const AnimatedVideoPlayer = (
           {...props}
           {...events}
           ref={videoRef || _videoRef}
-          resizeMode={_resizeMode}
+          resizeMode={resizeMode}
           volume={_volume}
           paused={_paused}
           muted={_muted}
           rate={rate}
           style={[_styles.player.video, styles.videoStyle]}
           source={source}
-          onBuffer={(e)=>setBuffering(e.isBuffering)}
+          onBuffer={(e) => setBuffering(e.isBuffering)}
         />
         {
           <>
@@ -445,18 +452,21 @@ const AnimatedVideoPlayer = (
               resetControlTimeout={resetControlTimeout}
               showControls={showControls}
             />
-            {  loading ? <Loader /> :
-             <PlayPause
-              animations={animations}
-              disablePlayPause={disablePlayPause}
-              disableSeekButtons={disableSeekButtons}
-              paused={_paused}
-              togglePlayPause={togglePlayPause}
-              resetControlTimeout={resetControlTimeout}
-              showControls={showControls}
-              onPressRewind={rewind}
-              onPressForward={forward}
-            />}
+            {loading ? (
+              <Loader />
+            ) : (
+              <PlayPause
+                animations={animations}
+                disablePlayPause={disablePlayPause}
+                disableSeekButtons={disableSeekButtons}
+                paused={_paused}
+                togglePlayPause={togglePlayPause}
+                resetControlTimeout={resetControlTimeout}
+                showControls={showControls}
+                onPressRewind={rewind}
+                onPressForward={forward}
+              />
+            )}
             <BottomControls
               animations={animations}
               panHandlers={seekPanResponder.panHandlers}

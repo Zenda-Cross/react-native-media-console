@@ -9,18 +9,21 @@ export const useAnimations = (controlAnimationTiming: number) => {
   const opacity = useSharedValue(1);
   const topControlMarginTop = useSharedValue(0);
 
+  // @ts-ignore
   const bottomControl = useAnimatedStyle(() => {
     return {
       transform: [{translateY: bottomControlMarginBottom.value}],
     };
   });
 
+  // @ts-ignore
   const topControl = useAnimatedStyle(() => {
     return {
       transform: [{translateY: topControlMarginTop.value}],
     };
   });
 
+  // @ts-ignore
   const controlsOpacity = useAnimatedStyle(() => {
     return {
       opacity: opacity.value,

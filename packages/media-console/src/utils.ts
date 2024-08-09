@@ -72,5 +72,7 @@ const formatTime = ({
     .toFixed(0)
     .padStart(2, '0');
 
-  return `${symbol}${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  return `${symbol}${
+    Number(formattedHours) > 0 ? `${formattedHours}:` : ''
+  }${formattedMinutes}:${formattedSeconds}`;
 };

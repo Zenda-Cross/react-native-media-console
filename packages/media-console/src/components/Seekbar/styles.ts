@@ -3,10 +3,10 @@ import {StyleSheet} from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     alignSelf: 'stretch',
-    height: 28,
+    height: 20,
     marginLeft: 20,
     marginRight: 20,
-    marginBottom: 10,
+    marginBottom: 0,
   },
   track: {
     backgroundColor: '#333',

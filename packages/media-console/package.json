@@ -1,5 +1,5 @@
 {
-  "name": "react-native-media-console",
+  "name": "@8man/react-native-media-console",
   "version": "2.2.4",
   "description": "A media player for the react-native-video component",
   "license": "MIT",
@@ -13,11 +13,12 @@
     "react video player"
   ],
   "bugs": {
-    "url": "https://github.com/LunatiqueCoder/react-native-media-console/issues"
   },
-  "homepage": "https://github.com/LunatiqueCoder/react-native-media-console",
-  "author": "Ovidiu Cristescu (https://github.com/LunatiqueCoder)",
-  "repository": "git@github.com:LunatiqueCoder/react-native-media-console.git",
+  "author": "Himanshu (https://github.com/himanshu8443)",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/himanshu8443/react-native-media-console"
+  },
   "scripts": {
     "lint": "eslint ./src",
     "test": "echo \"No test specified\" && exit 1",
