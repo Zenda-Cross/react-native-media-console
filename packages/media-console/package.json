@@ -1,6 +1,6 @@
 {
   "name": "@8man/react-native-media-console",
-  "version": "2.2.4",
+  "version": "2.2.4-alpha.2",
   "description": "A media player for the react-native-video component",
   "license": "MIT",
   "source": "src/index",
@@ -12,8 +12,7 @@
     "react video controls",
     "react video player"
   ],
-  "bugs": {
-  },
+  "bugs": {},
   "author": "Himanshu (https://github.com/himanshu8443)",
   "repository": {
     "type": "git",

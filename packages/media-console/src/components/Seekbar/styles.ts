@@ -3,14 +3,14 @@ import {StyleSheet} from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     alignSelf: 'stretch',
-    height: 20,
+    height: 24,
     marginLeft: 20,
     marginRight: 20,
     marginBottom: 0,
   },
   track: {
     backgroundColor: '#333',
-    height: 6,
+    height: 4,
     position: 'relative',
     top: 14,
     width: '100%',
@@ -18,22 +18,22 @@ export const styles = StyleSheet.create({
   },
   fill: {
     backgroundColor: '#FFF',
-    height: 6,
+    height: 5,
     width: '100%',
     borderRadius: 3,
   },
   handle: {
     position: 'absolute',
-    marginLeft: -7,
+    marginLeft: -9.3,
     height: 32,
     width: 32,
   },
   circle: {
     borderRadius: 12,
     position: 'relative',
-    top: 8,
+    top: 10,
     left: -5,
-    height: 19,
-    width: 19,
+    height: 14,
+    width: 14,
   },
 });

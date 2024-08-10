@@ -108,6 +108,8 @@ const AnimatedVideoPlayer = (
   const [error, setError] = useState(false);
   const [duration, setDuration] = useState(0);
   const [buffering, setBuffering] = useState(false);
+  const [cachedDuration, setCachedDuration] = useState(0);
+  const [cachedPosition, setCachedPosition] = useState(0);
 
   const videoRef = props.videoRef || _videoRef;
 
@@ -180,6 +182,7 @@ const AnimatedVideoPlayer = (
   function _onProgress(data: OnProgressData) {
     if (!seeking && !buffering) {
       setCurrentTime(data.currentTime);
+      setCachedDuration(data.playableDuration);
 
       if (typeof onProgress === 'function') {
         onProgress(data);
@@ -340,7 +343,10 @@ const AnimatedVideoPlayer = (
     if (!seeking && currentTime && duration) {
       const percent = currentTime / duration;
       const position = seekerWidth * percent;
-
+      const cachedPercent = cachedDuration / duration;
+      const cachedPosition = seekerWidth * cachedPercent;
+      const newCachedPosition = constrainToSeekerMinMax(cachedPosition);
+      setCachedPosition(newCachedPosition);
       setSeekerPosition(position);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -485,6 +491,7 @@ const AnimatedVideoPlayer = (
               seekerFillWidth={seekerFillWidth}
               seekerPosition={seekerPosition}
               setSeekerWidth={setSeekerWidth}
+              cachedPosition={cachedPosition}
               isFullscreen={isFullscreen}
               disableFullscreen={disableFullscreen}
               toggleFullscreen={toggleFullscreen}

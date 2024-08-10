@@ -36,6 +36,7 @@ interface BottomControlsProps {
   isFullscreen: boolean;
   disableFullscreen: boolean;
   toggleFullscreen: () => void;
+  cachedPosition: number;
 }
 
 export const BottomControls = ({
@@ -59,6 +60,7 @@ export const BottomControls = ({
   isFullscreen,
   disableFullscreen,
   toggleFullscreen,
+  cachedPosition,
 }: BottomControlsProps) => {
   const timerControl = disableTimer ? (
     <NullControl />
@@ -86,6 +88,7 @@ export const BottomControls = ({
       seekColor={seekColor}
       seekerPanHandlers={panHandlers}
       setSeekerWidth={setSeekerWidth}
+      cachedPosition={cachedPosition}
     />
   );
 
@@ -136,6 +139,6 @@ const _styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginLeft: 12,
     marginRight: 12,
-    marginBottom: 8,
+    marginBottom: 0,
   },
 });
