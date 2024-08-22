@@ -16,6 +16,16 @@ export const styles = StyleSheet.create({
     width: '35%',
     alignItems: 'center',
   },
-  play: {},
-  rewind: {},
+  play: {
+    height: 72,
+    width: 72,
+  },
+  rewind: {
+    height: 60,
+    width: 60,
+  },
+  forward: {
+    height: 60,
+    width: 60
+  },
 });
