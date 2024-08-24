@@ -459,7 +459,7 @@ const AnimatedVideoPlayer = (
               showControls={showControls}
             />
             {loading ? (
-              <Loader />
+              <Loader color={seekColor} />
             ) : (
               <PlayPause
                 animations={animations}

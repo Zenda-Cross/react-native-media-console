@@ -2,12 +2,14 @@ import React from 'react';
 import {View, ActivityIndicator} from 'react-native';
 import {styles} from './styles';
 
-interface LoaderProps {}
+interface LoaderProps {
+  color?: string;
+}
 
-export const Loader = ({}: LoaderProps) => {
+export const Loader = ({color = 'tomato'}: LoaderProps) => {
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={'tomato'} size={'large'} />
+      <ActivityIndicator color={color} size={'large'} />
     </View>
   );
 };
