@@ -130,7 +130,7 @@ const AnimatedVideoPlayer = (
     if (!seeking) {
       setControlTimeout();
     }
-    setCurrentTime(obj.seekTime);
+    setCurrentTime(obj.currentTime);
     console.log(obj);
 
     if (typeof onSeek === 'function') {
@@ -414,11 +414,13 @@ const AnimatedVideoPlayer = (
 
   const rewind = () => {
     const newTime = currentTime - rewindTime;
+    setCurrentTime(newTime);
     videoRef?.current?.seek(newTime);
   };
 
   const forward = () => {
     const newTime = currentTime + rewindTime;
+    setCurrentTime(newTime);
     videoRef?.current?.seek(newTime);
   };
 
