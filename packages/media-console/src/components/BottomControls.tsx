@@ -119,7 +119,6 @@ export const BottomControls = ({
         </SafeAreaView>
         <SafeAreaView style={[styles.row, _styles.bottomControlGroup]}>
           {timerControl}
-          <Title title={title} />
           {fullscreenControl}
         </SafeAreaView>
       </ImageBackground>

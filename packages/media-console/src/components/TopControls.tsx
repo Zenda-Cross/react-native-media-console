@@ -11,8 +11,10 @@ import {Back} from './Back';
 import {NullControl} from './NullControl';
 import {styles} from './styles';
 import type {VideoAnimations} from '../types';
+import {Title} from '@8man/react-native-media-console/src/components/Title';
 
 interface TopControlProps {
+  title: {primary: string; secondary?: string};
   showControls: boolean;
   panHandlers: GestureResponderHandlers;
   animations: VideoAnimations;
@@ -27,6 +29,7 @@ interface TopControlProps {
 
 export const TopControls = memo(
   ({
+    title,
     showControls,
     panHandlers,
     animations: {AnimatedView, controlsOpacity, topControl},
@@ -66,7 +69,10 @@ export const TopControls = memo(
           style={[styles.column]}
           imageStyle={[styles.vignette]}>
           <SafeAreaView style={_styles.topControlGroup}>
-            {backControl}
+            <View style={_styles.sideControl}>
+              {backControl}
+              <Title {...title} />
+            </View>
             <View style={_styles.pullRight}>{volumeControl}</View>
           </SafeAreaView>
         </ImageBackground>
@@ -93,5 +99,11 @@ const _styles = StyleSheet.create({
     flexDirection: 'row',
     margin: 12,
     marginBottom: 18,
+  },
+  sideControl: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

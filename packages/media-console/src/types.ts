@@ -75,7 +75,7 @@ export interface VideoPlayerProps extends ReactVideoProps {
   /**
    * Title of the video
    */
-  title?: string;
+  title?: {primary: string; secondary?: string};
 
   /**
    * If true, show the time remaing, else show the current time in the Player.

@@ -40,7 +40,7 @@ const AnimatedVideoPlayer = (
     paused = false,
     muted = false,
     volume = 1,
-    title = '',
+    title = {primary: '', secondary: ''},
     rate = 1,
     showDuration = false,
     showTimeRemaining = false,
@@ -344,8 +344,8 @@ const AnimatedVideoPlayer = (
       const percent = currentTime / duration;
       const position = seekerWidth * percent;
       const cachedPercent = cachedDuration / duration;
-      const cachedPosition = seekerWidth * cachedPercent;
-      const newCachedPosition = constrainToSeekerMinMax(cachedPosition);
+      const cachePosition = seekerWidth * cachedPercent;
+      const newCachedPosition = constrainToSeekerMinMax(cachePosition);
       setCachedPosition(newCachedPosition);
       setSeekerPosition(position);
     }
@@ -449,6 +449,7 @@ const AnimatedVideoPlayer = (
             <Error error={error} />
             {!disableOverlay && <Overlay animations={animations} />}
             <TopControls
+              title={title}
               panHandlers={volumePanResponder.panHandlers}
               animations={animations}
               disableBack={disableBack}
@@ -487,7 +488,7 @@ const AnimatedVideoPlayer = (
               currentTime={currentTime}
               duration={duration}
               seekColor={seekColor}
-              title={title}
+              title={''}
               toggleTimer={toggleTimer}
               resetControlTimeout={resetControlTimeout}
               seekerFillWidth={seekerFillWidth}
