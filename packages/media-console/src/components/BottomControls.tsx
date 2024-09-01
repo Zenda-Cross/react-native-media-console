@@ -6,7 +6,6 @@ import {
   GestureResponderHandlers,
 } from 'react-native';
 import {Timer} from './Timer';
-import {Title} from './Title';
 import {NullControl} from './NullControl';
 import {Fullscreen} from './Fullscreen';
 import {Seekbar} from './Seekbar';
@@ -27,7 +26,6 @@ interface BottomControlsProps {
   currentTime: number;
   duration: number;
   seekColor: string;
-  title: string;
   toggleTimer: () => void;
   resetControlTimeout: () => void;
   seekerFillWidth: number;
@@ -51,7 +49,6 @@ export const BottomControls = ({
   showHours,
   showTimeRemaining,
   currentTime,
-  title,
   toggleTimer,
   resetControlTimeout,
   seekerFillWidth,

@@ -488,7 +488,6 @@ const AnimatedVideoPlayer = (
               currentTime={currentTime}
               duration={duration}
               seekColor={seekColor}
-              title={''}
               toggleTimer={toggleTimer}
               resetControlTimeout={resetControlTimeout}
               seekerFillWidth={seekerFillWidth}
