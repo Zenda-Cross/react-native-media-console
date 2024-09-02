@@ -10,7 +10,7 @@ import {Control} from '../Control';
 import {NullControl} from '../NullControl';
 import type {VideoAnimations} from '../../types';
 import {styles} from './styles';
-
+import {Loader} from '@8man/react-native-media-console/src/components/Loader';
 
 export const playPauseRef = createRef<TouchableHighlight>();
 
@@ -19,6 +19,8 @@ interface PlayPauseProps {
   disablePlayPause: boolean;
   disableSeekButtons: boolean;
   paused: boolean;
+  // pauseLabel: boolean;
+  buffering: boolean;
   togglePlayPause: () => void;
   resetControlTimeout: () => void;
   showControls: boolean;
@@ -36,14 +38,14 @@ export const PlayPause = ({
   disablePlayPause,
   disableSeekButtons,
   paused,
+  // pauseLabel,
+  buffering,
   togglePlayPause,
   resetControlTimeout,
   showControls,
   onPressForward,
   onPressRewind,
 }: PlayPauseProps) => {
-  let source = paused ? play : pause;
-
   const animatedStyles = {
     zIndex: showControls ? 99999 : 0,
   };
@@ -73,11 +75,13 @@ export const PlayPause = ({
         style={styles.playContainer}
         controlRef={playPauseRef}
         {...(Platform.isTV ? {hasTVPreferredFocus: showControls} : {})}>
-        <TouchableOpacity onPress={togglePlayPause}>
-          <Image source={
-            paused ? play : pause
-          } style={styles.play} />
-        </TouchableOpacity>
+        {buffering ? (
+          <Loader />
+        ) : (
+          <TouchableOpacity onPress={togglePlayPause}>
+            <Image source={paused ? play : pause} style={styles.play} />
+          </TouchableOpacity>
+        )}
       </Control>
       {!disableSeekButtons ? (
         <Control

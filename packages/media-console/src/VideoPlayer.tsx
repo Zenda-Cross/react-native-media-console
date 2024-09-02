@@ -211,6 +211,17 @@ const AnimatedVideoPlayer = (
     }
   };
 
+  const _onPlaybackRateChange = (playBack: {playbackRate: number}) => {
+    if (playBack.playbackRate === 0 && !buffering) {
+      setTimeout(() => {
+        !buffering && setPaused(true);
+      });
+    } else {
+      setPaused(false);
+    }
+    console.log(playBack);
+  };
+
   const events = {
     onError: onError || _onError,
     onBack: (onBack || _onBack(navigator)) as () => void,
@@ -226,6 +237,7 @@ const AnimatedVideoPlayer = (
     onLoad: _onLoad,
     onPause,
     onPlay,
+    onPlaybackRateChange: _onPlaybackRateChange,
   };
 
   const constrainToSeekerMinMax = useCallback(
@@ -344,8 +356,8 @@ const AnimatedVideoPlayer = (
       const percent = currentTime / duration;
       const position = seekerWidth * percent;
       const cachedPercent = cachedDuration / duration;
-      const cachePosition = seekerWidth * cachedPercent;
-      const newCachedPosition = constrainToSeekerMinMax(cachePosition);
+      const _cachedPosition = seekerWidth * cachedPercent;
+      const newCachedPosition = constrainToSeekerMinMax(_cachedPosition);
       setCachedPosition(newCachedPosition);
       setSeekerPosition(position);
     }
@@ -442,7 +454,12 @@ const AnimatedVideoPlayer = (
           rate={rate}
           style={[_styles.player.video, styles.videoStyle]}
           source={source}
-          onBuffer={(e) => setBuffering(e.isBuffering)}
+          onBuffer={(e) => {
+            setBuffering(e.isBuffering);
+            if (!e.isBuffering) {
+              setPaused(false);
+            }
+          }}
         />
         {
           <>
@@ -469,11 +486,13 @@ const AnimatedVideoPlayer = (
                 disablePlayPause={disablePlayPause}
                 disableSeekButtons={disableSeekButtons}
                 paused={_paused}
+                // pauseLabel={pauseLabel}
                 togglePlayPause={togglePlayPause}
                 resetControlTimeout={resetControlTimeout}
                 showControls={showControls}
                 onPressRewind={rewind}
                 onPressForward={forward}
+                buffering={buffering}
               />
             )}
             <BottomControls
