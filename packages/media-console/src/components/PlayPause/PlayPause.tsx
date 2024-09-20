@@ -26,6 +26,7 @@ interface PlayPauseProps {
   showControls: boolean;
   onPressForward: () => void;
   onPressRewind: () => void;
+  primaryColor: string;
 }
 
 const play = require('../../assets/img/playNew.png');
@@ -45,6 +46,7 @@ export const PlayPause = ({
   showControls,
   onPressForward,
   onPressRewind,
+  primaryColor,
 }: PlayPauseProps) => {
   const animatedStyles = {
     zIndex: showControls ? 99999 : 0,
@@ -76,7 +78,7 @@ export const PlayPause = ({
         controlRef={playPauseRef}
         {...(Platform.isTV ? {hasTVPreferredFocus: showControls} : {})}>
         {buffering ? (
-          <Loader />
+          <Loader color={primaryColor} />
         ) : (
           <TouchableOpacity onPress={togglePlayPause}>
             <Image source={paused ? play : pause} style={styles.play} />

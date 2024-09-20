@@ -493,6 +493,7 @@ const AnimatedVideoPlayer = (
                 onPressRewind={rewind}
                 onPressForward={forward}
                 buffering={buffering}
+                primaryColor={seekColor}
               />
             )}
             <BottomControls
