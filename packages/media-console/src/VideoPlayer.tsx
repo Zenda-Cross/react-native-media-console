@@ -180,6 +180,7 @@ const AnimatedVideoPlayer = (
   }
 
   function _onProgress(data: OnProgressData) {
+    setLoading(false);
     if (!seeking && !buffering) {
       setCurrentTime(data.currentTime);
       setCachedDuration(data.playableDuration);
@@ -435,6 +436,16 @@ const AnimatedVideoPlayer = (
     setCurrentTime(newTime);
     videoRef?.current?.seek(newTime);
   };
+
+  // reset on url change
+  useEffect(() => {
+    setLoading(true);
+    setSeekerFillWidth(0);
+    setSeekerPosition(0);
+    setCachedPosition(0);
+    setCurrentTime(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeof source === 'object' && 'uri' in source ? source.uri : null]);
 
   return (
     <PlatformSupport
