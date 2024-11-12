@@ -21,6 +21,7 @@ import {PlatformSupport} from './OSSupport';
 import {_onBack} from './utils';
 import {_styles} from './styles';
 import type {VideoPlayerProps, WithRequiredProperty} from './types';
+import Gestures from '@8man/react-native-media-console/src/components/Gestures';
 
 const volumeWidth = 150;
 const iconOffset = 0;
@@ -425,14 +426,16 @@ const AnimatedVideoPlayer = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rewind = () => {
-    const newTime = currentTime - rewindTime;
+  const rewind = (time?: number) => {
+    const newTime =
+      typeof time === 'number' ? currentTime - time : currentTime - rewindTime;
     setCurrentTime(newTime);
     videoRef?.current?.seek(newTime);
   };
 
-  const forward = () => {
-    const newTime = currentTime + rewindTime;
+  const forward = (time?: number) => {
+    const newTime =
+      typeof time === 'number' ? currentTime + time : currentTime + rewindTime;
     setCurrentTime(newTime);
     videoRef?.current?.seek(newTime);
   };
@@ -507,6 +510,18 @@ const AnimatedVideoPlayer = (
                 primaryColor={seekColor}
               />
             )}
+            <Gestures
+              forward={forward}
+              rewind={rewind}
+              togglePlayPause={togglePlayPause}
+              doubleTapTime={doubleTapTime}
+              seekerWidth={seekerWidth}
+              rewindTime={rewindTime}
+              toggleControls={toggleControls}
+              tapActionTimeout={tapActionTimeout}
+              tapAnywhereToPause={tapAnywhereToPause}
+              showControls={showControls}
+            />
             <BottomControls
               animations={animations}
               panHandlers={seekPanResponder.panHandlers}
