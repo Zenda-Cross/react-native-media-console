@@ -34,6 +34,7 @@ type GesturesProps = {
   tapAnywhereToPause: boolean;
   rewindTime: number;
   showControls: boolean;
+  disableGesture: boolean;
 };
 
 const SWIPE_RANGE = 300;
@@ -131,6 +132,7 @@ const Gestures = ({
   tapAnywhereToPause,
   rewindTime = 10,
   showControls,
+  disableGesture,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
   // const [ripplePosition,setRipplePosition] = useState({x: 0, y: 0});
@@ -464,6 +466,10 @@ const Gestures = ({
       resetSettings();
     };
   }, []);
+
+  if (disableGesture) {
+    return null;
+  }
   return (
     <GestureHandlerRootView style={{width: '100%', height: '70%'}}>
       <GestureDetector gesture={panGesture}>

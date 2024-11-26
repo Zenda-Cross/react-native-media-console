@@ -77,6 +77,7 @@ const AnimatedVideoPlayer = (
     rewindTime = 15,
     pan: {horizontal: horizontalPan, inverted: invertedPan} = {},
     testID,
+    disableGesture = false,
   } = props;
 
   const mounted = useRef(false);
@@ -521,6 +522,7 @@ const AnimatedVideoPlayer = (
               tapActionTimeout={tapActionTimeout}
               tapAnywhereToPause={tapAnywhereToPause}
               showControls={showControls}
+              disableGesture={disableGesture}
             />
             <BottomControls
               animations={animations}

@@ -268,4 +268,11 @@ export interface VideoPlayerProps extends ReactVideoProps {
    * testID selector for testing
    */
   testID?: string;
+
+  /**
+   * Disable the gesture for the player
+   *
+   * @default false
+   */
+  disableGesture?: boolean;
 }
