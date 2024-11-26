@@ -3,10 +3,8 @@
 
 
 "@8man/react-native-media-console@file:C:\\Users\\sangw\\OneDrive\\Desktop\\react-native-media-console\\packages\\media-console":
-  version "2.2.4-alpha.10"
+  version "2.2.4-alpha.13"
   resolved "file:packages/media-console"
-  dependencies:
-    react-native-system-setting "^1.7.6"
 
 "@ampproject/remapping@^2.2.0":
   version "2.3.0"
