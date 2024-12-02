@@ -37,7 +37,7 @@ type GesturesProps = {
   disableGesture: boolean;
 };
 
-const SWIPE_RANGE = 300;
+const SWIPE_RANGE = 370;
 
 const Ripple = ({
   visible,
@@ -87,7 +87,7 @@ const Ripple = ({
     <View
       style={{
         position: 'absolute',
-        top: showControls ? -25 : 0,
+        top: showControls ? -70 : -45,
         left: isLeft ? '-10%' : undefined,
         right: isLeft ? undefined : '-10%',
         width: SCREEN_WIDTH / 2.5,
@@ -231,7 +231,7 @@ const Gestures = ({
 
         const count = Number(tapCountRef.current);
         const baseTime = Number(rewindTime);
-        const newSkipTime = count * baseTime;
+        const newSkipTime = count === 2 ? baseTime : baseTime * count;
 
         console.log('Multiple tap calculation:', {
           count,
@@ -453,7 +453,7 @@ const Gestures = ({
           //   console.log('Resetting to original settings:🔥', originalSettings.current);
 
           await Promise.all([
-            SystemSetting.setVolume(originalSettings.current.volume),
+            // SystemSetting.setVolume(originalSettings.current.volume),
             SystemSetting.setAppBrightness(originalSettings.current.brightness),
           ]);
 
@@ -485,6 +485,7 @@ const Gestures = ({
             onPress={(e) => handleTap(e, 'left')}
             style={{
               flex: 1,
+              top: 40,
               height: '100%',
               position: 'relative',
             }}>
@@ -500,6 +501,7 @@ const Gestures = ({
           <Pressable
             onPress={(e) => handleTap(e, 'right')}
             style={{
+              top: 40,
               flex: 1,
               height: '100%',
               position: 'relative',
