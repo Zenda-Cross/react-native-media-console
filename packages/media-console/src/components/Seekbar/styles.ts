@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
   },
   track: {
     backgroundColor: '#333',
-    height: 4,
+    height: 3,
     position: 'relative',
     top: 14,
     width: '100%',
@@ -18,22 +18,22 @@ export const styles = StyleSheet.create({
   },
   fill: {
     backgroundColor: '#FFF',
-    height: 5,
+    height: 4,
     width: '100%',
     borderRadius: 3,
   },
   handle: {
     position: 'absolute',
     marginLeft: -9.3,
-    height: 32,
-    width: 32,
+    height: 30,
+    width: 30,
   },
   circle: {
     borderRadius: 12,
     position: 'relative',
     top: 10,
-    left: -5,
-    height: 14,
-    width: 14,
+    left: -2,
+    height: 12,
+    width: 12,
   },
 });

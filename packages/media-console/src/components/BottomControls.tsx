@@ -59,6 +59,7 @@ export const BottomControls = ({
   toggleFullscreen,
   cachedPosition,
 }: BottomControlsProps) => {
+  //@ts-ignore
   const timerControl = disableTimer ? (
     <NullControl />
   ) : (
@@ -86,9 +87,15 @@ export const BottomControls = ({
       seekerPanHandlers={panHandlers}
       setSeekerWidth={setSeekerWidth}
       cachedPosition={cachedPosition}
+      showDuration={showDuration}
+      showHours={showHours}
+      showTimeRemaining={showTimeRemaining}
+      duration={duration}
+      time={currentTime}
     />
   );
 
+  //@ts-ignore
   const fullscreenControl = disableFullscreen ? (
     <NullControl />
   ) : (
@@ -114,10 +121,9 @@ export const BottomControls = ({
         <SafeAreaView style={styles.seekBarContainer}>
           {seekbarControl}
         </SafeAreaView>
-        <SafeAreaView style={[styles.row, _styles.bottomControlGroup]}>
+        {/* <SafeAreaView style={[styles.row, _styles.bottomControlGroup]}>
           {timerControl}
-          {fullscreenControl}
-        </SafeAreaView>
+        </SafeAreaView> */}
       </ImageBackground>
     </AnimatedView>
   );

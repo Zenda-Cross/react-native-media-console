@@ -42,7 +42,7 @@ interface FormatTime {
   showHours: boolean;
 }
 
-const formatTime = ({
+export const formatTime = ({
   time = 0,
   duration,
   showTimeRemaining,
