@@ -162,9 +162,9 @@ const Gestures = ({
 
   const handleSkip = async () => {
     try {
-      const count = Number(tapCountRef.current);
+      const count = Number(tapCountRef.current) - 1;
       const baseTime = Number(rewindTime);
-      const skipTime = count * baseTime;
+      const skipTime = baseTime * count;
 
       console.log('Skip calculation:', {
         count,
@@ -229,9 +229,9 @@ const Gestures = ({
         tapCountRef.current += 1;
         lastTapTimeRef.current = now;
 
-        const count = Number(tapCountRef.current);
+        const count = Number(tapCountRef.current) - 1;
         const baseTime = Number(rewindTime);
-        const newSkipTime = count === 2 ? baseTime : baseTime * count;
+        const newSkipTime = baseTime * count;
 
         console.log('Multiple tap calculation:', {
           count,
