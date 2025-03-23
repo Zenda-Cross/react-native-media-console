@@ -78,6 +78,7 @@ const AnimatedVideoPlayer = (
     pan: {horizontal: horizontalPan, inverted: invertedPan} = {},
     testID,
     disableGesture = false,
+    hideAllControlls = false,
   } = props;
 
   const mounted = useRef(false);
@@ -479,74 +480,78 @@ const AnimatedVideoPlayer = (
         {
           <>
             <Error error={error} />
-            {!disableOverlay && <Overlay animations={animations} />}
-            <TopControls
-              title={title}
-              panHandlers={volumePanResponder.panHandlers}
-              animations={animations}
-              disableBack={disableBack}
-              disableVolume={disableVolume}
-              volumeFillWidth={volumeFillWidth}
-              volumeTrackWidth={volumeTrackWidth}
-              volumePosition={volumePosition}
-              onBack={events.onBack}
-              resetControlTimeout={resetControlTimeout}
-              showControls={showControls}
-            />
-            {loading ? (
-              <Loader color={seekColor} />
-            ) : (
-              <PlayPause
-                animations={animations}
-                disablePlayPause={disablePlayPause}
-                disableSeekButtons={disableSeekButtons}
-                paused={_paused}
-                // pauseLabel={pauseLabel}
-                togglePlayPause={togglePlayPause}
-                resetControlTimeout={resetControlTimeout}
-                showControls={showControls}
-                onPressRewind={rewind}
-                onPressForward={forward}
-                buffering={buffering}
-                primaryColor={seekColor}
-              />
+            {!hideAllControlls && (
+              <>
+                {!disableOverlay && <Overlay animations={animations} />}
+                <TopControls
+                  title={title}
+                  panHandlers={volumePanResponder.panHandlers}
+                  animations={animations}
+                  disableBack={disableBack}
+                  disableVolume={disableVolume}
+                  volumeFillWidth={volumeFillWidth}
+                  volumeTrackWidth={volumeTrackWidth}
+                  volumePosition={volumePosition}
+                  onBack={events.onBack}
+                  resetControlTimeout={resetControlTimeout}
+                  showControls={showControls}
+                />
+                {loading ? (
+                  <Loader color={seekColor} />
+                ) : (
+                  <PlayPause
+                    animations={animations}
+                    disablePlayPause={disablePlayPause}
+                    disableSeekButtons={disableSeekButtons}
+                    paused={_paused}
+                    // pauseLabel={pauseLabel}
+                    togglePlayPause={togglePlayPause}
+                    resetControlTimeout={resetControlTimeout}
+                    showControls={showControls}
+                    onPressRewind={rewind}
+                    onPressForward={forward}
+                    buffering={buffering}
+                    primaryColor={seekColor}
+                  />
+                )}
+                <Gestures
+                  forward={forward}
+                  rewind={rewind}
+                  togglePlayPause={togglePlayPause}
+                  doubleTapTime={doubleTapTime}
+                  seekerWidth={seekerWidth}
+                  rewindTime={rewindTime}
+                  toggleControls={toggleControls}
+                  tapActionTimeout={tapActionTimeout}
+                  tapAnywhereToPause={tapAnywhereToPause}
+                  showControls={showControls}
+                  disableGesture={disableGesture}
+                />
+                <BottomControls
+                  animations={animations}
+                  panHandlers={seekPanResponder.panHandlers}
+                  disableTimer={disableTimer}
+                  disableSeekbar={disableSeekbar}
+                  showHours={showHours}
+                  showDuration={showDuration}
+                  paused={_paused}
+                  showTimeRemaining={_showTimeRemaining}
+                  currentTime={currentTime}
+                  duration={duration}
+                  seekColor={seekColor}
+                  toggleTimer={toggleTimer}
+                  resetControlTimeout={resetControlTimeout}
+                  seekerFillWidth={seekerFillWidth}
+                  seekerPosition={seekerPosition}
+                  setSeekerWidth={setSeekerWidth}
+                  cachedPosition={cachedPosition}
+                  isFullscreen={isFullscreen}
+                  disableFullscreen={disableFullscreen}
+                  toggleFullscreen={toggleFullscreen}
+                  showControls={showControls}
+                />
+              </>
             )}
-            <Gestures
-              forward={forward}
-              rewind={rewind}
-              togglePlayPause={togglePlayPause}
-              doubleTapTime={doubleTapTime}
-              seekerWidth={seekerWidth}
-              rewindTime={rewindTime}
-              toggleControls={toggleControls}
-              tapActionTimeout={tapActionTimeout}
-              tapAnywhereToPause={tapAnywhereToPause}
-              showControls={showControls}
-              disableGesture={disableGesture}
-            />
-            <BottomControls
-              animations={animations}
-              panHandlers={seekPanResponder.panHandlers}
-              disableTimer={disableTimer}
-              disableSeekbar={disableSeekbar}
-              showHours={showHours}
-              showDuration={showDuration}
-              paused={_paused}
-              showTimeRemaining={_showTimeRemaining}
-              currentTime={currentTime}
-              duration={duration}
-              seekColor={seekColor}
-              toggleTimer={toggleTimer}
-              resetControlTimeout={resetControlTimeout}
-              seekerFillWidth={seekerFillWidth}
-              seekerPosition={seekerPosition}
-              setSeekerWidth={setSeekerWidth}
-              cachedPosition={cachedPosition}
-              isFullscreen={isFullscreen}
-              disableFullscreen={disableFullscreen}
-              toggleFullscreen={toggleFullscreen}
-              showControls={showControls}
-            />
           </>
         }
       </View>

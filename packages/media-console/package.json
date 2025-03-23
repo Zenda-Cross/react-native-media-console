@@ -1,7 +1,7 @@
 {
   "name": "@8man/react-native-media-console",
-  "version": "2.2.4-alpha.18",
-  "description": "A media player for the react-native-video component",
+  "version": "2.2.4-alpha.20",
+  "description": "Controls for react-native-video",
   "license": "MIT",
   "source": "src/index",
   "main": "lib/commonjs/index.js",

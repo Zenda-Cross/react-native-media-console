@@ -275,4 +275,11 @@ export interface VideoPlayerProps extends ReactVideoProps {
    * @default false
    */
   disableGesture?: boolean;
+
+  /**
+   * is Player Locked
+   *
+   * @default false
+   */
+  hideAllControlls?: boolean;
 }

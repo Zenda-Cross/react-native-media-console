@@ -445,26 +445,26 @@ const Gestures = ({
     initializeSettings();
 
     // Cleanup function
-    return () => {
-      mounted = false;
+    // return () => {
+    //   mounted = false;
 
-      const resetSettings = async () => {
-        try {
-          //   console.log('Resetting to original settings:🔥', originalSettings.current);
+    //   const resetSettings = async () => {
+    //     try {
+    //       //   console.log('Resetting to original settings:🔥', originalSettings.current);
 
-          await Promise.all([
-            // SystemSetting.setVolume(originalSettings.current.volume),
-            SystemSetting.setAppBrightness(originalSettings.current.brightness),
-          ]);
+    //       await Promise.all([
+    //         // SystemSetting.setVolume(originalSettings.current.volume),
+    //         SystemSetting.setAppBrightness(originalSettings.current.brightness),
+    //       ]);
 
-          //   console.log('Settings reset successfully');
-        } catch (error) {
-          console.error('Error resetting settings:', error);
-        }
-      };
+    //       //   console.log('Settings reset successfully');
+    //     } catch (error) {
+    //       console.error('Error resetting settings:', error);
+    //     }
+    //   };
 
-      resetSettings();
-    };
+    //   resetSettings();
+    // };
   }, []);
 
   if (disableGesture) {
