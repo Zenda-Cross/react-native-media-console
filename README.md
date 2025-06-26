@@ -1,7 +1,8 @@
-# Controlls for react-native-video
+# Controls for react-native-video
 
 
-![Screenshot_2024-08-25-10-06-49-592_com vega](https://github.com/user-attachments/assets/8c638c54-5553-476e-8a50-1e86940a6e2a)
+![Screenshot_2025-06-26-20-14-15-200_com vega](https://github.com/user-attachments/assets/7d498feb-19f4-4067-a1f0-1ba35d459bd9)
+
 
 
 ## install
