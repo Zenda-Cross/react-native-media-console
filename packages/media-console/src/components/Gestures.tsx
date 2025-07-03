@@ -5,7 +5,7 @@ import {
   GestureResponderEvent,
   Dimensions,
 } from 'react-native';
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import Animated, {
   useAnimatedStyle,
   withTiming,
@@ -39,88 +39,107 @@ type GesturesProps = {
 
 const SWIPE_RANGE = 370;
 
-const Ripple = ({
-  visible,
-  isLeft,
-  totalTime,
-  showControls,
-}: {
-  visible: boolean;
-  isLeft: boolean;
-  totalTime: number;
-  showControls: boolean;
-}) => {
-  const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
+const Ripple = React.memo(
+  ({
+    visible,
+    isLeft,
+    totalTime,
+    showControls,
+  }: {
+    visible: boolean;
+    isLeft: boolean;
+    totalTime: number;
+    showControls: boolean;
+  }) => {
+    const screenDimensions = useMemo(() => Dimensions.get('window'), []);
+    const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = screenDimensions;
 
-  React.useEffect(() => {
-    if (visible) {
-      scale.value = withSequence(
-        withTiming(1.5, {duration: 400}),
-        withDelay(
-          400,
-          withTiming(0, {
-            duration: 400,
-          }),
-        ),
-      );
-      opacity.value = withSequence(
-        withTiming(0.4, {duration: 400}),
-        withDelay(
-          400,
-          withTiming(0, {
-            duration: 400,
-          }),
-        ),
-      );
-    }
-  }, [visible]);
+    const scale = useSharedValue(0);
+    const opacity = useSharedValue(0);
 
-  const rippleStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    //@ts-ignore
-    transform: [{scale: scale.value}],
-  }));
+    React.useEffect(() => {
+      if (visible) {
+        scale.value = withSequence(
+          withTiming(1.5, {duration: 400}),
+          withDelay(
+            400,
+            withTiming(0, {
+              duration: 400,
+            }),
+          ),
+        );
+        opacity.value = withSequence(
+          withTiming(0.4, {duration: 400}),
+          withDelay(
+            400,
+            withTiming(0, {
+              duration: 400,
+            }),
+          ),
+        );
+      }
+    }, [visible, scale, opacity]);
 
-  return visible ? (
-    <View
-      style={{
-        position: 'absolute',
+    const rippleStyle = useAnimatedStyle(
+      () => ({
+        opacity: opacity.value,
+        //@ts-ignore
+        transform: [{scale: scale.value}],
+      }),
+      [],
+    );
+
+    const containerStyle = useMemo(
+      () => ({
+        position: 'absolute' as const,
         top: showControls ? -70 : -45,
-        left: isLeft ? '-10%' : undefined,
-        right: isLeft ? undefined : '-10%',
+        left: isLeft ? ('-10%' as const) : undefined,
+        right: isLeft ? undefined : ('-10%' as const),
         width: SCREEN_WIDTH / 2.5,
         height: SCREEN_HEIGHT,
         zIndex: 999,
-      }}>
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.9)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderRadius: SCREEN_HEIGHT / 2,
-          },
-          rippleStyle,
-        ]}>
-        <Icon
-          name={isLeft ? 'fast-rewind' : 'fast-forward'}
-          size={28}
-          color="white"
-        />
-        {!isNaN(totalTime) && totalTime > 0 && (
-          <Text style={{color: 'white', marginTop: 8, fontSize: 12}}>
-            {Math.floor(totalTime)}s
-          </Text>
-        )}
-      </Animated.View>
-    </View>
-  ) : null;
-};
+      }),
+      [showControls, isLeft, SCREEN_WIDTH, SCREEN_HEIGHT],
+    );
+
+    const innerStyle = useMemo(
+      () => ({
+        position: 'absolute' as const,
+        width: '100%' as const,
+        height: '100%' as const,
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        borderRadius: SCREEN_HEIGHT / 2,
+      }),
+      [SCREEN_HEIGHT],
+    );
+
+    const textStyle = useMemo(
+      () => ({
+        color: 'white',
+        marginTop: 8,
+        fontSize: 12,
+      }),
+      [],
+    );
+
+    return visible ? (
+      <View style={containerStyle as any}>
+        <Animated.View style={[innerStyle, rippleStyle]}>
+          <Icon
+            name={isLeft ? 'fast-rewind' : 'fast-forward'}
+            size={28}
+            color="white"
+          />
+          {!isNaN(totalTime) && totalTime > 0 && (
+            <Text style={textStyle}>{Math.floor(totalTime)}s</Text>
+          )}
+        </Animated.View>
+      </View>
+    ) : null;
+  },
+);
 
 const Gestures = ({
   forward,
@@ -135,19 +154,36 @@ const Gestures = ({
   disableGesture,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
-  // const [ripplePosition,setRipplePosition] = useState({x: 0, y: 0});
   const [isLeftRipple, setIsLeftRipple] = useState(false);
   const [totalSkipTime, setTotalSkipTime] = useState(0);
+  const [displayVolume, setDisplayVolume] = useState(0);
+  const [displayBrightness, setDisplayBrightness] = useState(0);
+  const [isVolumeVisible, setIsVolumeVisible] = useState(false);
+  const [isBrightnessVisible, setIsBrightnessVisible] = useState(false);
+
+  // Memoize screen dimensions
+  const screenDimensions = useMemo(() => Dimensions.get('window'), []);
+  const {width: SCREEN_WIDTH} = screenDimensions;
+
+  // Refs
   const initialTapPosition = useRef({x: 0, y: 0});
   const isDoubleTapRef = useRef(false);
   const currentSideRef = useRef<'left' | 'right' | null>(null);
   const tapCountRef = useRef(0);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTapTimeRef = useRef(0);
+  const originalSettings = useRef({
+    volume: 0,
+    brightness: 0,
+  });
 
-  const {width: SCREEN_WIDTH} = Dimensions.get('window');
+  // Shared values
+  const volumeValue = useSharedValue(0);
+  const brightnessValue = useSharedValue(0);
+  const startVolume = useSharedValue(0);
+  const startBrightness = useSharedValue(0);
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
     isDoubleTapRef.current = false;
     currentSideRef.current = null;
     tapCountRef.current = 0;
@@ -158,21 +194,13 @@ const Gestures = ({
       clearTimeout(skipTimeoutRef.current);
       skipTimeoutRef.current = null;
     }
-  };
+  }, []);
 
-  const handleSkip = async () => {
+  const handleSkip = useCallback(async () => {
     try {
       const count = Number(tapCountRef.current) - 1;
       const baseTime = Number(rewindTime);
       const skipTime = baseTime * count;
-
-      console.log('Skip calculation:', {
-        count,
-        baseTime,
-        skipTime,
-        side: currentSideRef.current,
-        isValidNumber: !isNaN(skipTime) && skipTime > 0,
-      });
 
       if (!isNaN(skipTime) && skipTime > 0) {
         if (currentSideRef.current === 'left') {
@@ -186,72 +214,19 @@ const Gestures = ({
     } finally {
       resetState();
     }
-  };
+  }, [rewindTime, rewind, forward, resetState]);
 
-  const handleTap = (e: GestureResponderEvent, side: 'left' | 'right') => {
-    const now = Date.now();
-    const touchX = e.nativeEvent.locationX;
-    const touchY = e.nativeEvent.locationY;
+  const handleTap = useCallback(
+    (e: GestureResponderEvent, side: 'left' | 'right') => {
+      const now = Date.now();
+      const touchX = e.nativeEvent.locationX;
+      const touchY = e.nativeEvent.locationY;
 
-    console.log('Tap details:', {
-      touchX,
-      side,
-      isDoubleTap: isDoubleTapRef.current,
-      timeSinceLastTap: now - lastTapTimeRef.current,
-    });
-
-    if (now - lastTapTimeRef.current > 500) {
-      resetState();
-    }
-
-    if (!isDoubleTapRef.current) {
-      isDoubleTapRef.current = true;
-      initialTapPosition.current = {x: touchX, y: touchY};
-      currentSideRef.current = side;
-      tapCountRef.current = 1;
-      lastTapTimeRef.current = now;
-
-      tapActionTimeout.current = setTimeout(() => {
-        if (tapAnywhereToPause) {
-          togglePlayPause();
-        } else {
-          toggleControls();
-        }
+      if (now - lastTapTimeRef.current > 500) {
         resetState();
-      }, doubleTapTime);
-    } else {
-      if (tapActionTimeout.current) {
-        clearTimeout(tapActionTimeout.current);
-        tapActionTimeout.current = null;
       }
 
-      if (currentSideRef.current === side) {
-        tapCountRef.current += 1;
-        lastTapTimeRef.current = now;
-
-        const count = Number(tapCountRef.current) - 1;
-        const baseTime = Number(rewindTime);
-        const newSkipTime = baseTime * count;
-
-        console.log('Multiple tap calculation:', {
-          count,
-          baseTime,
-          newSkipTime,
-          tapCount: tapCountRef.current,
-          side,
-        });
-
-        setTotalSkipTime(newSkipTime);
-        setRippleVisible(true);
-        // setRipplePosition(initialTapPosition.current);
-        setIsLeftRipple(side === 'left');
-
-        if (skipTimeoutRef.current) {
-          clearTimeout(skipTimeoutRef.current);
-        }
-        skipTimeoutRef.current = setTimeout(handleSkip, 500);
-      } else {
-        resetState();
+      if (!isDoubleTapRef.current) {
         isDoubleTapRef.current = true;
         initialTapPosition.current = {x: touchX, y: touchY};
         currentSideRef.current = side;
@@ -259,105 +234,118 @@ const Gestures = ({
         lastTapTimeRef.current = now;
 
         tapActionTimeout.current = setTimeout(() => {
+          if (tapAnywhereToPause) {
+            togglePlayPause();
+          } else {
+            toggleControls();
+          }
           resetState();
         }, doubleTapTime);
+      } else {
+        if (tapActionTimeout.current) {
+          clearTimeout(tapActionTimeout.current);
+          tapActionTimeout.current = null;
+        }
+
+        if (currentSideRef.current === side) {
+          tapCountRef.current += 1;
+          lastTapTimeRef.current = now;
+
+          const count = Number(tapCountRef.current) - 1;
+          const baseTime = Number(rewindTime);
+          const newSkipTime = baseTime * count;
+
+          setTotalSkipTime(newSkipTime);
+          setRippleVisible(true);
+          setIsLeftRipple(side === 'left');
+
+          if (skipTimeoutRef.current) {
+            clearTimeout(skipTimeoutRef.current);
+          }
+          skipTimeoutRef.current = setTimeout(handleSkip, 500);
+        } else {
+          resetState();
+          isDoubleTapRef.current = true;
+          initialTapPosition.current = {x: touchX, y: touchY};
+          currentSideRef.current = side;
+          tapCountRef.current = 1;
+          lastTapTimeRef.current = now;
+
+          tapActionTimeout.current = setTimeout(() => {
+            resetState();
+          }, doubleTapTime);
+        }
       }
-    }
-  };
+    },
+    [
+      resetState,
+      tapAnywhereToPause,
+      togglePlayPause,
+      toggleControls,
+      doubleTapTime,
+      rewindTime,
+      handleSkip,
+    ],
+  );
 
-  React.useEffect(() => {
-    return () => {
-      if (skipTimeoutRef.current) {
-        clearTimeout(skipTimeoutRef.current);
-      }
-      if (tapActionTimeout.current) {
-        clearTimeout(tapActionTimeout.current);
-      }
-    };
-  }, []);
-
-  const volumeValue = useSharedValue(0);
-  const brightnessValue = useSharedValue(0);
-  const startVolume = useSharedValue(0);
-  const startBrightness = useSharedValue(0);
-  const [displayVolume, setDisplayVolume] = useState(0);
-  const [displayBrightness, setDisplayBrightness] = useState(0);
-  const [isVolumeVisible, setIsVolumeVisible] = useState(false);
-  const [isBrightnessVisible, setIsBrightnessVisible] = useState(false);
-
-  // Store original values in refs to maintain latest values for cleanup
-  const originalSettings = useRef({
-    volume: 0,
-    brightness: 0,
-  });
-
-  React.useEffect(() => {
-    const initializeSettings = async () => {
-      try {
-        const currentVolume = await SystemSetting.getVolume();
-        const currentBrightness = await SystemSetting.getBrightness();
-        volumeValue.value = currentVolume;
-        brightnessValue.value = currentBrightness;
-        setDisplayVolume(currentVolume);
-        setDisplayBrightness(currentBrightness);
-      } catch (error) {
-        console.error('Error initializing settings:', error);
-      }
-    };
-    initializeSettings();
-  }, []);
-
-  const updateSystemVolume = React.useCallback((newVolume: number) => {
+  const updateSystemVolume = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
     SystemSetting.setVolume(clampedVolume);
     setDisplayVolume(clampedVolume);
   }, []);
 
-  const updateSystemBrightness = React.useCallback((newBrightness: number) => {
+  const updateSystemBrightness = useCallback((newBrightness: number) => {
     const clampedBrightness = Math.max(0, Math.min(1, newBrightness));
     SystemSetting.setAppBrightness(clampedBrightness);
     setDisplayBrightness(clampedBrightness);
   }, []);
 
-  const panGesture = Gesture.Pan()
-    .minDistance(10) // Minimum distance before gesture starts
-    .onStart((event) => {
-      'worklet';
-      const isLeftSide = event.x < SCREEN_WIDTH / 2;
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(10) // Minimum distance before gesture starts
+        .onStart((event) => {
+          'worklet';
+          const isLeftSide = event.x < SCREEN_WIDTH / 2;
 
-      if (isLeftSide) {
-        startBrightness.value = brightnessValue.value;
-        runOnJS(setIsBrightnessVisible)(true);
-      } else {
-        startVolume.value = volumeValue.value;
-        runOnJS(setIsVolumeVisible)(true);
-      }
-    })
-    .onUpdate((event) => {
-      'worklet';
-      const isLeftSide = event.x < SCREEN_WIDTH / 2;
-      const change = -event.translationY / SWIPE_RANGE;
+          if (isLeftSide) {
+            startBrightness.value = brightnessValue.value;
+            runOnJS(setIsBrightnessVisible)(true);
+          } else {
+            startVolume.value = volumeValue.value;
+            runOnJS(setIsVolumeVisible)(true);
+          }
+        })
+        .onUpdate((event) => {
+          'worklet';
+          const isLeftSide = event.x < SCREEN_WIDTH / 2;
+          const change = -event.translationY / SWIPE_RANGE;
 
-      if (isLeftSide) {
-        // Brightness control
-        const newBrightness = Math.max(
-          0,
-          Math.min(1, startBrightness.value + change),
-        );
-        brightnessValue.value = newBrightness;
-        runOnJS(updateSystemBrightness)(newBrightness);
-      } else {
-        // Volume control
-        const newVolume = Math.max(0, Math.min(1, startVolume.value + change));
-        volumeValue.value = newVolume;
-        runOnJS(updateSystemVolume)(newVolume);
-      }
-    })
-    .onFinalize(() => {
-      'worklet';
-      runOnJS(setIsVolumeVisible)(false);
-      runOnJS(setIsBrightnessVisible)(false);
-    });
+          if (isLeftSide) {
+            // Brightness control
+            const newBrightness = Math.max(
+              0,
+              Math.min(1, startBrightness.value + change),
+            );
+            brightnessValue.value = newBrightness;
+            runOnJS(updateSystemBrightness)(newBrightness);
+          } else {
+            // Volume control
+            const newVolume = Math.max(
+              0,
+              Math.min(1, startVolume.value + change),
+            );
+            volumeValue.value = newVolume;
+            runOnJS(updateSystemVolume)(newVolume);
+          }
+        })
+        .onFinalize(() => {
+          'worklet';
+          runOnJS(setIsVolumeVisible)(false);
+          runOnJS(setIsBrightnessVisible)(false);
+        }),
+    [SCREEN_WIDTH, updateSystemBrightness, updateSystemVolume],
+  );
 
   const ControlOverlay = React.memo(
     ({
@@ -369,44 +357,108 @@ const Gestures = ({
       isVisible: boolean;
       isVolume: boolean;
     }) => {
+      const containerStyle = useMemo(
+        () => ({
+          position: 'absolute' as const,
+          top: '50%' as const,
+          left: !isVolume ? undefined : ('15%' as const),
+          right: !isVolume ? ('15%' as const) : undefined,
+          transform: [
+            {translateX: 0 as const},
+            {translateY: showControls ? -20 : 0},
+          ] as const,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          borderRadius: 10,
+          minWidth: 50,
+          padding: 10,
+          alignItems: 'center' as const,
+          zIndex: 1000,
+        }),
+        [isVolume, showControls],
+      );
+
+      const textStyle = useMemo(
+        () => ({
+          color: 'white',
+          marginTop: 5,
+        }),
+        [],
+      );
+
+      const iconName = useMemo(() => {
+        if (isVolume) {
+          return value === 0
+            ? 'volume-mute'
+            : value < 0.3
+            ? 'volume-down'
+            : 'volume-up';
+        }
+        return 'brightness-6';
+      }, [isVolume, value]);
+
       if (!isVisible) return null;
 
       return (
-        <Animated.View
-          // @ts-ignore
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: !isVolume ? undefined : '15%',
-            right: !isVolume ? '15%' : undefined,
-            transform: [{translateX: 0}, {translateY: showControls ? -20 : 0}],
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            borderRadius: 10,
-            minWidth: 50,
-            padding: 10,
-            alignItems: 'center',
-            zIndex: 1000,
-          }}>
-          <Icon
-            name={
-              isVolume
-                ? value === 0
-                  ? 'volume-mute'
-                  : value < 0.3
-                  ? 'volume-down'
-                  : 'volume-up'
-                : 'brightness-6'
-            }
-            size={24}
-            color="white"
-          />
-          <Text style={{color: 'white', marginTop: 5}}>
-            {Math.round(value * 100)}
-          </Text>
+        <Animated.View style={containerStyle as any}>
+          <Icon name={iconName} size={24} color="white" />
+          <Text style={textStyle}>{Math.round(value * 100)}</Text>
         </Animated.View>
       );
     },
   );
+
+  // Initialize and store original settings
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeSettings = async () => {
+      try {
+        const [currentVolume, currentBrightness] = await Promise.all([
+          SystemSetting.getVolume(),
+          SystemSetting.getBrightness(),
+        ]);
+
+        if (mounted) {
+          // Store original values
+          originalSettings.current = {
+            volume: currentVolume,
+            brightness: currentBrightness,
+          };
+
+          // Set initial values
+          volumeValue.value = currentVolume;
+          brightnessValue.value = currentBrightness;
+          setDisplayVolume(currentVolume);
+          setDisplayBrightness(currentBrightness);
+
+          console.log('Original settings stored:🔥', {
+            volume: currentVolume,
+            brightness: currentBrightness,
+          });
+        }
+      } catch (error) {
+        console.error('Error initializing settings:', error);
+      }
+    };
+
+    initializeSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Cleanup useEffect
+  useEffect(() => {
+    return () => {
+      if (skipTimeoutRef.current) {
+        clearTimeout(skipTimeoutRef.current);
+      }
+      if (tapActionTimeout.current) {
+        clearTimeout(tapActionTimeout.current);
+      }
+    };
+  }, []);
 
   // Initialize and store original settings
   useEffect(() => {
@@ -467,28 +519,69 @@ const Gestures = ({
     // };
   }, []);
 
+  // Memoize container styles
+  const containerStyle = useMemo(
+    () => ({
+      width: '100%' as const,
+      height: '70%' as const,
+    }),
+    [],
+  );
+
+  const gestureContainerStyle = useMemo(
+    () => ({
+      position: 'relative' as const,
+      width: '100%' as const,
+      height: '100%' as const,
+      flexDirection: 'row' as const,
+    }),
+    [],
+  );
+
+  const leftPressableStyle = useMemo(
+    () => ({
+      flex: 1,
+      top: 40,
+      height: '100%' as const,
+      position: 'relative' as const,
+    }),
+    [],
+  );
+
+  const rightPressableStyle = useMemo(
+    () => ({
+      top: 40,
+      flex: 1,
+      height: '100%' as const,
+      position: 'relative' as const,
+    }),
+    [],
+  );
+
+  // Memoized handler functions
+  const handleLeftTap = useCallback(
+    (e: GestureResponderEvent) => {
+      handleTap(e, 'left');
+    },
+    [handleTap],
+  );
+
+  const handleRightTap = useCallback(
+    (e: GestureResponderEvent) => {
+      handleTap(e, 'right');
+    },
+    [handleTap],
+  );
+
   if (disableGesture) {
     return null;
   }
   return (
-    <GestureHandlerRootView style={{width: '100%', height: '70%'}}>
+    <GestureHandlerRootView style={containerStyle}>
       <GestureDetector gesture={panGesture}>
-        <View
-          style={{
-            position: 'relative',
-            width: '100%',
-            height: '100%',
-            flexDirection: 'row',
-          }}>
+        <View style={gestureContainerStyle}>
           {/* Left side for brightness */}
-          <Pressable
-            onPress={(e) => handleTap(e, 'left')}
-            style={{
-              flex: 1,
-              top: 40,
-              height: '100%',
-              position: 'relative',
-            }}>
+          <Pressable onPress={handleLeftTap} style={leftPressableStyle}>
             <Ripple
               visible={rippleVisible && isLeftRipple}
               showControls={showControls}
@@ -498,14 +591,7 @@ const Gestures = ({
           </Pressable>
 
           {/* Right side for volume */}
-          <Pressable
-            onPress={(e) => handleTap(e, 'right')}
-            style={{
-              top: 40,
-              flex: 1,
-              height: '100%',
-              position: 'relative',
-            }}>
+          <Pressable onPress={handleRightTap} style={rightPressableStyle}>
             <Ripple
               visible={rippleVisible && !isLeftRipple}
               showControls={showControls}

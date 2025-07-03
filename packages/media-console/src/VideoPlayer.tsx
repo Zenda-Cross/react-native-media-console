@@ -1,4 +1,4 @@
-import React, {useCallback, useState, useEffect, useRef} from 'react';
+import React, {useCallback, useState, useEffect, useRef, useMemo} from 'react';
 import {View} from 'react-native';
 import Video, {
   OnLoadData,
@@ -116,32 +116,56 @@ const AnimatedVideoPlayer = (
 
   const videoRef = props.videoRef || _videoRef;
 
-  const toggleFullscreen = () => setIsFullscreen((prevState) => !prevState);
-  const toggleControls = () =>
-    setShowControls((prevState) => alwaysShowControls || !prevState);
-  const toggleTimer = () => setShowTimeRemaining((prevState) => !prevState);
-  const togglePlayPause = () => {
+  const {clearControlTimeout, resetControlTimeout, setControlTimeout} =
+    useControlTimeout({
+      controlTimeout,
+      controlTimeoutDelay,
+      mounted: mounted.current,
+      showControls,
+      setShowControls,
+      alwaysShowControls,
+    });
+
+  const toggleFullscreen = useCallback(
+    () => setIsFullscreen((prevState) => !prevState),
+    [],
+  );
+  const toggleControls = useCallback(
+    () => setShowControls((prevState) => alwaysShowControls || !prevState),
+    [alwaysShowControls],
+  );
+  const toggleTimer = useCallback(
+    () => setShowTimeRemaining((prevState) => !prevState),
+    [],
+  );
+  const togglePlayPause = useCallback(() => {
     setPaused((prevState) => !prevState);
-  };
+  }, []);
 
-  const styles = {
-    videoStyle,
-    containerStyle: containerStyle,
-  };
+  const styles = useMemo(
+    () => ({
+      videoStyle,
+      containerStyle: containerStyle,
+    }),
+    [videoStyle, containerStyle],
+  );
 
-  const _onSeek = (obj: OnSeekData) => {
-    if (!seeking) {
-      setControlTimeout();
-    }
-    setCurrentTime(obj.currentTime);
-    console.log(obj);
+  const _onSeek = useCallback(
+    (obj: OnSeekData) => {
+      if (!seeking) {
+        setControlTimeout();
+      }
+      setCurrentTime(obj.currentTime);
+      console.log(obj);
 
-    if (typeof onSeek === 'function') {
-      onSeek(obj);
-    }
-  };
+      if (typeof onSeek === 'function') {
+        onSeek(obj);
+      }
+    },
+    [seeking, setControlTimeout, onSeek],
+  );
 
-  const _onEnd = () => {
+  const _onEnd = useCallback(() => {
     if (currentTime < duration) {
       setCurrentTime(duration);
       setPaused(!props.repeat);
@@ -154,48 +178,58 @@ const AnimatedVideoPlayer = (
     if (typeof onEnd === 'function') {
       onEnd();
     }
-  };
+  }, [currentTime, duration, props.repeat, showOnEnd, onEnd]);
 
-  const _onError = () => {
+  const _onError = useCallback(() => {
     setError(true);
     setLoading(false);
-  };
+  }, []);
 
-  function _onLoadStart(e: OnLoadStartData) {
-    setLoading(true);
+  const _onLoadStart = useCallback(
+    (e: OnLoadStartData) => {
+      setLoading(true);
 
-    if (typeof onLoadStart === 'function') {
-      onLoadStart(e);
-    }
-  }
-
-  function _onLoad(data: OnLoadData) {
-    setDuration(data.duration);
-    setLoading(false);
-
-    if (showControls) {
-      setControlTimeout();
-    }
-
-    if (typeof onLoad === 'function') {
-      onLoad(data);
-    }
-  }
-
-  function _onProgress(data: OnProgressData) {
-    setLoading(false);
-    if (!seeking && !buffering) {
-      setCurrentTime(data.currentTime);
-      setCachedDuration(data.playableDuration);
-
-      if (typeof onProgress === 'function') {
-        onProgress(data);
+      if (typeof onLoadStart === 'function') {
+        onLoadStart(e);
       }
-    }
-  }
+    },
+    [onLoadStart],
+  );
 
-  const _onScreenTouch = () => {
+  const _onLoad = useCallback(
+    (data: OnLoadData) => {
+      setDuration(data.duration);
+      setLoading(false);
+
+      if (showControls) {
+        setControlTimeout();
+      }
+
+      if (typeof onLoad === 'function') {
+        onLoad(data);
+      }
+    },
+    [showControls, setControlTimeout, onLoad],
+  );
+
+  const _onProgress = useCallback(
+    (data: OnProgressData) => {
+      setLoading(false);
+      if (!seeking && !buffering) {
+        setCurrentTime(data.currentTime);
+        setCachedDuration(data.playableDuration);
+
+        if (typeof onProgress === 'function') {
+          onProgress(data);
+        }
+      }
+    },
+    [seeking, buffering, onProgress],
+  );
+
+  const _onScreenTouch = useCallback(() => {
     if (tapActionTimeout.current) {
+      // This is a double tap - clear timeout and toggle fullscreen
       clearTimeout(tapActionTimeout.current);
       tapActionTimeout.current = null;
       toggleFullscreen();
@@ -203,6 +237,7 @@ const AnimatedVideoPlayer = (
         resetControlTimeout();
       }
     } else {
+      // This is a single tap - set timeout to handle single tap action
       tapActionTimeout.current = setTimeout(() => {
         if (tapAnywhereToPause && showControls) {
           togglePlayPause();
@@ -213,36 +248,68 @@ const AnimatedVideoPlayer = (
         tapActionTimeout.current = null;
       }, doubleTapTime);
     }
-  };
+  }, [
+    toggleFullscreen,
+    showControls,
+    resetControlTimeout,
+    tapAnywhereToPause,
+    togglePlayPause,
+    toggleControls,
+    doubleTapTime,
+  ]);
 
-  const _onPlaybackRateChange = (playBack: {playbackRate: number}) => {
-    if (playBack.playbackRate === 0 && !buffering) {
-      setTimeout(() => {
-        !buffering && setPaused(true);
-      });
-    } else {
-      setPaused(false);
-    }
-    console.log(playBack);
-  };
+  const _onPlaybackRateChange = useCallback(
+    (playBack: {playbackRate: number}) => {
+      if (playBack.playbackRate === 0 && !buffering) {
+        setTimeout(() => {
+          !buffering && setPaused(true);
+        });
+      } else {
+        setPaused(false);
+      }
+      console.log(playBack);
+    },
+    [buffering],
+  );
 
-  const events = {
-    onError: onError || _onError,
-    onBack: (onBack || _onBack(navigator)) as () => void,
-    onEnd: _onEnd,
-    onScreenTouch: _onScreenTouch,
-    onEnterFullscreen,
-    onExitFullscreen,
-    onShowControls,
-    onHideControls,
-    onLoadStart: _onLoadStart,
-    onProgress: _onProgress,
-    onSeek: _onSeek,
-    onLoad: _onLoad,
-    onPause,
-    onPlay,
-    onPlaybackRateChange: _onPlaybackRateChange,
-  };
+  const events = useMemo(
+    () => ({
+      onError: onError || _onError,
+      onBack: (onBack || _onBack(navigator)) as () => void,
+      onEnd: _onEnd,
+      onScreenTouch: _onScreenTouch,
+      onEnterFullscreen,
+      onExitFullscreen,
+      onShowControls,
+      onHideControls,
+      onLoadStart: _onLoadStart,
+      onProgress: _onProgress,
+      onSeek: _onSeek,
+      onLoad: _onLoad,
+      onPause,
+      onPlay,
+      onPlaybackRateChange: _onPlaybackRateChange,
+    }),
+    [
+      onError,
+      _onError,
+      onBack,
+      navigator,
+      _onEnd,
+      _onScreenTouch,
+      onEnterFullscreen,
+      onExitFullscreen,
+      onShowControls,
+      onHideControls,
+      _onLoadStart,
+      _onProgress,
+      _onSeek,
+      _onLoad,
+      onPause,
+      onPlay,
+      _onPlaybackRateChange,
+    ],
+  );
 
   const constrainToSeekerMinMax = useCallback(
     (val = 0) => {
@@ -256,14 +323,14 @@ const AnimatedVideoPlayer = (
     [seekerWidth],
   );
 
-  const constrainToVolumeMinMax = (val = 0) => {
+  const constrainToVolumeMinMax = useCallback((val = 0) => {
     if (val <= 0) {
       return 0;
     } else if (val >= volumeWidth + 9) {
       return volumeWidth + 9;
     }
     return val;
-  };
+  }, []);
 
   const setSeekerPosition = useCallback(
     (position = 0) => {
@@ -275,26 +342,19 @@ const AnimatedVideoPlayer = (
     [constrainToSeekerMinMax],
   );
 
-  const setVolumePosition = (position = 0) => {
-    const positionValue = constrainToVolumeMinMax(position);
-    setVolumePositionState(positionValue + iconOffset);
+  const setVolumePosition = useCallback(
+    (position = 0) => {
+      const positionValue = constrainToVolumeMinMax(position);
+      setVolumePositionState(positionValue + iconOffset);
 
-    if (positionValue < 0) {
-      setVolumeFillWidth(0);
-    } else {
-      setVolumeFillWidth(positionValue);
-    }
-  };
-
-  const {clearControlTimeout, resetControlTimeout, setControlTimeout} =
-    useControlTimeout({
-      controlTimeout,
-      controlTimeoutDelay,
-      mounted: mounted.current,
-      showControls,
-      setShowControls,
-      alwaysShowControls,
-    });
+      if (positionValue < 0) {
+        setVolumeFillWidth(0);
+      } else {
+        setVolumeFillWidth(positionValue);
+      }
+    },
+    [constrainToVolumeMinMax],
+  );
 
   const {volumePanResponder, seekPanResponder} = usePanResponders({
     duration,
@@ -316,7 +376,7 @@ const AnimatedVideoPlayer = (
   });
 
   useEffect(() => {
-    if (currentTime >= duration) {
+    if (currentTime >= duration && duration > 0) {
       videoRef?.current?.seek(0);
     }
   }, [currentTime, duration, videoRef]);
@@ -428,29 +488,73 @@ const AnimatedVideoPlayer = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rewind = (time?: number) => {
-    const newTime =
-      typeof time === 'number' ? currentTime - time : currentTime - rewindTime;
-    setCurrentTime(newTime);
-    videoRef?.current?.seek(newTime);
-  };
+  const rewind = useCallback(
+    (time?: number) => {
+      const newTime =
+        typeof time === 'number'
+          ? currentTime - time
+          : currentTime - rewindTime;
+      setCurrentTime(newTime);
+      videoRef?.current?.seek(newTime);
+    },
+    [currentTime, rewindTime, videoRef],
+  );
 
-  const forward = (time?: number) => {
-    const newTime =
-      typeof time === 'number' ? currentTime + time : currentTime + rewindTime;
-    setCurrentTime(newTime);
-    videoRef?.current?.seek(newTime);
-  };
+  const forward = useCallback(
+    (time?: number) => {
+      const newTime =
+        typeof time === 'number'
+          ? currentTime + time
+          : currentTime + rewindTime;
+      setCurrentTime(newTime);
+      videoRef?.current?.seek(newTime);
+    },
+    [currentTime, rewindTime, videoRef],
+  );
 
-  // reset on url change
+  // Memoize onBuffer callback
+  const onBuffer = useCallback((e: {isBuffering: boolean}) => {
+    setBuffering(e.isBuffering);
+    if (!e.isBuffering) {
+      setPaused(false);
+    }
+  }, []);
+
+  // Memoize source URI for dependency comparison - use deep comparison for stability
+  const sourceUri = useMemo(() => {
+    if (!source) return null;
+    if (typeof source === 'object' && 'uri' in source) {
+      return source.uri;
+    }
+    if (typeof source === 'object') {
+      // For other source objects, create a stable string representation
+      return JSON.stringify(source);
+    }
+    return String(source);
+  }, [source]);
+
+  // Keep track of previous source to prevent unnecessary resets
+  const prevSourceUri = useRef(sourceUri);
+  const hasInitialized = useRef(false);
+
+  // reset on url change - only reset if source actually changed and component has initialized
   useEffect(() => {
-    setLoading(true);
-    setSeekerFillWidth(0);
-    setSeekerPosition(0);
-    setCachedPosition(0);
-    setCurrentTime(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeof source === 'object' && 'uri' in source ? source.uri : null]);
+    if (
+      hasInitialized.current &&
+      sourceUri !== prevSourceUri.current &&
+      sourceUri !== null
+    ) {
+      prevSourceUri.current = sourceUri;
+      setLoading(true);
+      setSeekerFillWidth(0);
+      setSeekerPosition(0);
+      setCachedPosition(0);
+      setCurrentTime(0);
+    } else if (!hasInitialized.current) {
+      prevSourceUri.current = sourceUri;
+      hasInitialized.current = true;
+    }
+  }, [sourceUri, setSeekerPosition]);
 
   return (
     <PlatformSupport
@@ -470,12 +574,7 @@ const AnimatedVideoPlayer = (
           rate={rate}
           style={[_styles.player.video, styles.videoStyle]}
           source={source}
-          onBuffer={(e) => {
-            setBuffering(e.isBuffering);
-            if (!e.isBuffering) {
-              setPaused(false);
-            }
-          }}
+          onBuffer={onBuffer}
         />
         {
           <>
