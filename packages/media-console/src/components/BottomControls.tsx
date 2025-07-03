@@ -1,6 +1,6 @@
 import React, {Dispatch, SetStateAction} from 'react';
 import {
-  ImageBackground,
+  // ImageBackground,
   SafeAreaView,
   StyleSheet,
   GestureResponderHandlers,
@@ -114,17 +114,17 @@ export const BottomControls = ({
         animations.controlsOpacity,
         animations.bottomControl,
       ]}>
-      <ImageBackground
+      {/* <ImageBackground
         source={require('../assets/img/bottom-vignette.png')}
         style={[styles.column]}
-        imageStyle={[styles.vignette]}>
-        <SafeAreaView style={styles.seekBarContainer}>
-          {seekbarControl}
-        </SafeAreaView>
-        {/* <SafeAreaView style={[styles.row, _styles.bottomControlGroup]}>
+        imageStyle={[styles.vignette]}> */}
+      <SafeAreaView style={styles.seekBarContainer}>
+        {seekbarControl}
+      </SafeAreaView>
+      {/* <SafeAreaView style={[styles.row, _styles.bottomControlGroup]}>
           {timerControl}
         </SafeAreaView> */}
-      </ImageBackground>
+      {/* </ImageBackground> */}
     </AnimatedView>
   );
 };

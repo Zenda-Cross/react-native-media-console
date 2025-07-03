@@ -1,6 +1,6 @@
 import React, {memo} from 'react';
 import {
-  ImageBackground,
+  // ImageBackground,
   SafeAreaView,
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
 import {Volume} from './Volume';
 import {Back} from './Back';
 import {NullControl} from './NullControl';
-import {styles} from './styles';
+// import {styles} from './styles';
 import type {VideoAnimations} from '../types';
 import {Title} from '@8man/react-native-media-console/src/components/Title';
 
@@ -64,18 +64,18 @@ export const TopControls = memo(
 
     return (
       <AnimatedView style={[_styles.top, controlsOpacity, topControl]}>
-        <ImageBackground
+        {/* <ImageBackground
           source={require('../assets/img/top-vignette.png')}
           style={[styles.column]}
-          imageStyle={[styles.vignette]}>
-          <SafeAreaView style={_styles.topControlGroup}>
-            <View style={_styles.sideControl}>
-              {backControl}
-              <Title {...title} />
-            </View>
-            <View style={_styles.pullRight}>{volumeControl}</View>
-          </SafeAreaView>
-        </ImageBackground>
+          imageStyle={[styles.vignette]}> */}
+        <SafeAreaView style={_styles.topControlGroup}>
+          <View style={_styles.sideControl}>
+            {backControl}
+            <Title {...title} />
+          </View>
+          <View style={_styles.pullRight}>{volumeControl}</View>
+        </SafeAreaView>
+        {/* </ImageBackground> */}
       </AnimatedView>
     );
   },
