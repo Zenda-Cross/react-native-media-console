@@ -28,7 +28,10 @@
   "peerDependencies": {
     "react-native": ">=0.46.0",
     "react-native-video": ">=6.0.0",
-    "react-native-reanimated": "^2.12.0"
+    "react-native-reanimated": "^2.12.0",
+    "expo-brightness": "~13.0.3",
+    "react-native-volume-manager": "^2.0.8",
+    "@expo/vector-icons": "^13.0.0"
   },
   "devDependencies": {
     "react": "18.3.1",
