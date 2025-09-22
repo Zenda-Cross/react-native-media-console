@@ -14,9 +14,10 @@ import Animated, {
   withDelay,
   runOnJS,
 } from 'react-native-reanimated';
-//@ts-ignore
 import Icon from '@expo/vector-icons/MaterialIcons';
-import SystemSetting from 'react-native-system-setting';
+import * as Brightness from 'expo-brightness';
+import {VolumeManager} from 'react-native-volume-manager';
+
 import {
   GestureDetector,
   Gesture,
@@ -35,6 +36,7 @@ type GesturesProps = {
   rewindTime: number;
   showControls: boolean;
   disableGesture: boolean;
+  setPlayback: (rate: number) => void;
 };
 
 const SWIPE_RANGE = 370;
@@ -152,6 +154,7 @@ const Gestures = ({
   rewindTime = 10,
   showControls,
   disableGesture,
+  setPlayback,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
   const [isLeftRipple, setIsLeftRipple] = useState(false);
@@ -160,6 +163,7 @@ const Gestures = ({
   const [displayBrightness, setDisplayBrightness] = useState(0);
   const [isVolumeVisible, setIsVolumeVisible] = useState(false);
   const [isBrightnessVisible, setIsBrightnessVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Memoize screen dimensions
   const screenDimensions = useMemo(() => Dimensions.get('window'), []);
@@ -182,6 +186,57 @@ const Gestures = ({
   const brightnessValue = useSharedValue(0);
   const startVolume = useSharedValue(0);
   const startBrightness = useSharedValue(0);
+  const toastOpacity = useSharedValue(0);
+
+  // Toast styles (inline, no Tailwind)
+  const toastAnimatedStyle = useAnimatedStyle(
+    () => ({
+      opacity: toastOpacity.value,
+      transform: [
+        {
+          translateY: (1 - toastOpacity.value) * -4, // subtle lift-in
+        },
+      ] as any,
+    }),
+    [],
+  );
+
+  const toastContainerStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      width: '100%' as const,
+      top: 48, // ~ top-12
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: 8, // px-2
+      zIndex: 1200,
+    }),
+    [],
+  );
+
+  const toastTextStyle = useMemo(
+    () => ({
+      color: 'white', // text-white
+      backgroundColor: 'rgba(0,0,0,0.5)', // bg-black/50
+      padding: 8, // p-2
+      borderRadius: 9999, // rounded-full
+      fontSize: 16, // text-base
+    }),
+    [],
+  );
+
+  const show2xToast = useCallback(() => {
+    setToastMessage('2× speed');
+    toastOpacity.value = withTiming(1, {duration: 150});
+  }, [toastOpacity]);
+
+  const hideToast = useCallback(() => {
+    toastOpacity.value = withTiming(0, {duration: 150}, (finished) => {
+      if (finished) {
+        runOnJS(setToastMessage)(null);
+      }
+    });
+  }, [toastOpacity]);
 
   const resetState = useCallback(() => {
     isDoubleTapRef.current = false;
@@ -290,13 +345,13 @@ const Gestures = ({
 
   const updateSystemVolume = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
-    SystemSetting.setVolume(clampedVolume);
+    VolumeManager.setVolume(clampedVolume);
     setDisplayVolume(clampedVolume);
   }, []);
 
   const updateSystemBrightness = useCallback((newBrightness: number) => {
     const clampedBrightness = Math.max(0, Math.min(1, newBrightness));
-    SystemSetting.setAppBrightness(clampedBrightness);
+    Brightness.setBrightnessAsync(clampedBrightness);
     setDisplayBrightness(clampedBrightness);
   }, []);
 
@@ -414,21 +469,21 @@ const Gestures = ({
     const initializeSettings = async () => {
       try {
         const [currentVolume, currentBrightness] = await Promise.all([
-          SystemSetting.getVolume(),
-          SystemSetting.getBrightness(),
+          VolumeManager.getVolume(),
+          Brightness.getBrightnessAsync(),
         ]);
 
         if (mounted) {
           // Store original values
           originalSettings.current = {
-            volume: currentVolume,
+            volume: currentVolume.volume,
             brightness: currentBrightness,
           };
 
           // Set initial values
-          volumeValue.value = currentVolume;
+          volumeValue.value = currentVolume.volume;
           brightnessValue.value = currentBrightness;
-          setDisplayVolume(currentVolume);
+          setDisplayVolume(currentVolume.volume);
           setDisplayBrightness(currentBrightness);
 
           console.log('Original settings stored:🔥', {
@@ -467,27 +522,22 @@ const Gestures = ({
     const initializeSettings = async () => {
       try {
         const [currentVolume, currentBrightness] = await Promise.all([
-          SystemSetting.getVolume(),
-          SystemSetting.getBrightness(),
+          VolumeManager.getVolume(),
+          Brightness.getBrightnessAsync(),
         ]);
 
         if (mounted) {
           // Store original values
           originalSettings.current = {
-            volume: currentVolume,
+            volume: currentVolume.volume,
             brightness: currentBrightness,
           };
 
           // Set initial values
-          volumeValue.value = currentVolume;
+          volumeValue.value = currentVolume.volume;
           brightnessValue.value = currentBrightness;
-          setDisplayVolume(currentVolume);
+          setDisplayVolume(currentVolume.volume);
           setDisplayBrightness(currentBrightness);
-
-          console.log('Original settings stored:🔥', {
-            volume: currentVolume,
-            brightness: currentBrightness,
-          });
         }
       } catch (error) {
         console.error('Error initializing settings:', error);
@@ -591,7 +641,17 @@ const Gestures = ({
           </Pressable>
 
           {/* Right side for volume */}
-          <Pressable onPress={handleRightTap} style={rightPressableStyle}>
+          <Pressable
+            onPress={handleRightTap}
+            style={rightPressableStyle}
+            onLongPress={() => {
+              setPlayback(2);
+              show2xToast();
+            }}
+            onPressOut={() => {
+              setPlayback(1);
+              hideToast();
+            }}>
             <Ripple
               visible={rippleVisible && !isLeftRipple}
               showControls={showControls}
@@ -601,6 +661,14 @@ const Gestures = ({
           </Pressable>
         </View>
       </GestureDetector>
+      {/* 2x speed toast */}
+      {toastMessage ? (
+        <Animated.View
+          style={[toastContainerStyle as any, toastAnimatedStyle]}
+          pointerEvents="none">
+          <Text style={toastTextStyle}>{toastMessage}</Text>
+        </Animated.View>
+      ) : null}
       {/* Overlays */}
       <ControlOverlay
         value={displayVolume}
