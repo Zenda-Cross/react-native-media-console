@@ -1,6 +1,6 @@
 {
   "name": "@8man/react-native-media-console",
-  "version": "2.2.4-alpha.22",
+  "version": "2.2.4-alpha.27",
   "description": "Controls for react-native-video",
   "license": "MIT",
   "source": "src/index",
@@ -25,25 +25,25 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "react-native": ">=0.46.0",
-    "react-native-video": ">=6.0.0",
-    "react-native-reanimated": "^2.12.0",
-    "expo-brightness": "~13.0.3",
-    "react-native-volume-manager": "^2.0.8",
     "@expo/vector-icons": "^13.0.0",
-    "react-native-gesture-handler": "^2.0.0"
+    "expo-brightness": "~13.0.3",
+    "react-native": ">=0.46.0",
+    "react-native-gesture-handler": "^2.0.0",
+    "react-native-reanimated": "^3.18.0",
+    "react-native-video": ">=6.0.0",
+    "react-native-volume-manager": "^2.0.8"
   },
   "devDependencies": {
+    "@expo/vector-icons": "^13.0.0",
+    "expo-brightness": "~13.0.3",
     "react": "^17.0.2",
     "react-native": "npm:react-native-tvos@0.68.2-5",
     "react-native-builder-bob": "^0.18.2",
-    "react-native-reanimated": "^2.12.0",
+    "react-native-gesture-handler": "^2.0.0",
+    "react-native-reanimated": "^3.18.0",
     "react-native-video": "6.0.0-beta.0",
-    "typescript": "^4.6.2",
-    "expo-brightness": "~13.0.3",
     "react-native-volume-manager": "^2.0.8",
-    "@expo/vector-icons": "^13.0.0",
-    "react-native-gesture-handler": "^2.0.0"
+    "typescript": "^4.6.2"
   },
   "react-native": "src/index.ts",
   "module": "lib/module/index.js",
