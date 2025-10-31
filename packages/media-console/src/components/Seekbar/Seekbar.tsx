@@ -1,6 +1,7 @@
 import React, {Dispatch, SetStateAction} from 'react';
 import {View, GestureResponderHandlers} from 'react-native';
 import {styles} from './styles';
+import {styles as globalStyles} from '../styles';
 import {formatTime} from '@8man/react-native-media-console/src/utils';
 import {Text} from 'react-native';
 
@@ -39,8 +40,8 @@ export const Seekbar = ({
         justifyContent: 'center',
         alignItems: 'flex-end',
       }}>
-      <View style={{}}>
-        <Text>
+      <View>
+        <Text style={{...globalStyles.text}}>
           {formatTime({
             duration,
             time,
@@ -92,7 +93,7 @@ export const Seekbar = ({
         </View>
       </View>
       <View style={{}}>
-        <Text>
+        <Text style={{...globalStyles.text}}>
           {formatTime({
             duration,
             time: duration,
