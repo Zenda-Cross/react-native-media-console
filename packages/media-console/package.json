@@ -1,6 +1,6 @@
 {
   "name": "@8man/react-native-media-console",
-  "version": "2.2.4-alpha.29",
+  "version": "2.2.4-alpha.31",
   "description": "Controls for react-native-video",
   "license": "MIT",
   "source": "src/index",
@@ -25,7 +25,7 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "@expo/vector-icons": "^13.0.0",
+    "@expo/vector-icons": "^15.0.3",
     "expo-brightness": "~13.0.3",
     "react-native": ">=0.46.0",
     "react-native-gesture-handler": "^2.0.0",
@@ -34,7 +34,6 @@
     "react-native-volume-manager": "^2.0.8"
   },
   "devDependencies": {
-    "@expo/vector-icons": "^13.0.0",
     "expo-brightness": "~13.0.3",
     "react": "^17.0.2",
     "react-native": "npm:react-native-tvos@0.68.2-5",
