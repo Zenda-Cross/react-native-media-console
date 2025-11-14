@@ -15,7 +15,9 @@ export const Title = (title: TitleProps) => {
           {title.primary}
         </Text>
         {title.secondary && (
-          <Text style={[_styles.secondaryText]} numberOfLines={1}>
+          <Text
+            style={[_styles.secondaryText, {color: 'hsl(0, 0%, 70%)'}]}
+            numberOfLines={1}>
             {title.secondary}
           </Text>
         )}
