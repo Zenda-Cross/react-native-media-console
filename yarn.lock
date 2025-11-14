@@ -8,7 +8,7 @@
   integrity sha512-/1iHy9TTr63gE1YcR5idjx8UREz1s0kFhydf3bBLCXyqjhkIc6igAzTOx3zPifCwFR87tsh/4Pa9cNts6d2otw==
 
 "@8man/react-native-media-console@file:C:\\Users\\sangw\\Desktop\\react-native-media-console\\packages\\media-console":
-  version "2.2.4-alpha.28"
+  version "2.2.4-alpha.29"
   resolved "file:packages/media-console"
 
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.12.13", "@babel/code-frame@^7.20.0", "@babel/code-frame@^7.21.4", "@babel/code-frame@^7.24.7", "@babel/code-frame@^7.27.1":
