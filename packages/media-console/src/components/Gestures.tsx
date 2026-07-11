@@ -4,6 +4,7 @@ import {
   Pressable,
   GestureResponderEvent,
   Dimensions,
+  Platform,
 } from 'react-native';
 import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import Animated, {
@@ -552,7 +553,9 @@ const Gestures = ({
 
       const resetSettings = async () => {
         try {
-          if (originalSettings.current.brightness !== undefined) {
+          if (Platform.OS === 'android') {
+            await Brightness.restoreSystemBrightnessAsync();
+          } else if (originalSettings.current.brightness !== undefined) {
             await Brightness.setBrightnessAsync(originalSettings.current.brightness);
           }
         } catch (error) {
