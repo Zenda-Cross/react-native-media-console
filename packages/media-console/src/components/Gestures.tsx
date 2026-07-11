@@ -547,26 +547,21 @@ const Gestures = ({
     initializeSettings();
 
     // Cleanup function
-    // return () => {
-    //   mounted = false;
+    return () => {
+      mounted = false;
 
-    //   const resetSettings = async () => {
-    //     try {
-    //       //   console.log('Resetting to original settings:🔥', originalSettings.current);
+      const resetSettings = async () => {
+        try {
+          if (originalSettings.current.brightness !== undefined) {
+            await Brightness.setBrightnessAsync(originalSettings.current.brightness);
+          }
+        } catch (error) {
+          console.error('Error resetting brightness:', error);
+        }
+      };
 
-    //       await Promise.all([
-    //         // SystemSetting.setVolume(originalSettings.current.volume),
-    //         SystemSetting.setAppBrightness(originalSettings.current.brightness),
-    //       ]);
-
-    //       //   console.log('Settings reset successfully');
-    //     } catch (error) {
-    //       console.error('Error resetting settings:', error);
-    //     }
-    //   };
-
-    //   resetSettings();
-    // };
+      resetSettings();
+    };
   }, []);
 
   // Memoize container styles
