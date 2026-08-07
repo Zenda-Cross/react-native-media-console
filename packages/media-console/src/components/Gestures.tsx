@@ -4,7 +4,6 @@ import {
   Pressable,
   GestureResponderEvent,
   Dimensions,
-  Platform,
 } from 'react-native';
 import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import Animated, {
@@ -577,56 +576,6 @@ const Gestures = ({
     };
   }, []);
 
-  // Initialize and store original settings
-  useEffect(() => {
-    let mounted = true;
-
-    const initializeSettings = async () => {
-      try {
-        const [currentVolume, currentBrightness] = await Promise.all([
-          VolumeManager.getVolume(),
-          Brightness.getBrightnessAsync(),
-        ]);
-
-        if (mounted) {
-          // Store original values
-          originalSettings.current = {
-            volume: currentVolume.volume,
-            brightness: currentBrightness,
-          };
-
-          // Set initial values
-          volumeValue.value = currentVolume.volume;
-          brightnessValue.value = currentBrightness;
-          setDisplayVolume(currentVolume.volume);
-          setDisplayBrightness(currentBrightness);
-        }
-      } catch (error) {
-        console.error('Error initializing settings:', error);
-      }
-    };
-
-    initializeSettings();
-
-    // Cleanup function
-    return () => {
-      mounted = false;
-
-      const resetSettings = async () => {
-        try {
-          if (Platform.OS === 'android') {
-            await Brightness.restoreSystemBrightnessAsync();
-          } else if (originalSettings.current.brightness !== undefined) {
-            await Brightness.setBrightnessAsync(originalSettings.current.brightness);
-          }
-        } catch (error) {
-          console.error('Error resetting brightness:', error);
-        }
-      };
-
-      resetSettings();
-    };
-  }, []);
 
   // Memoize container styles
   const containerStyle = useMemo(

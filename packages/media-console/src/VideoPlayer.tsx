@@ -1,5 +1,6 @@
 import React, {useCallback, useState, useEffect, useRef, useMemo} from 'react';
-import {View} from 'react-native';
+import {Platform, View} from 'react-native';
+import * as Brightness from 'expo-brightness';
 import Video, {
   OnLoadData,
   OnLoadStartData,
@@ -82,6 +83,7 @@ const AnimatedVideoPlayer = (
   } = props;
 
   const mounted = useRef(false);
+  const originalBrightness = useRef<number | null>(null);
   const _videoRef = useRef<VideoRef>(null);
   const tapActionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [_resizeMode, setResizeMode] = useState<ResizeMode>(ResizeMode.CONTAIN);
@@ -113,6 +115,38 @@ const AnimatedVideoPlayer = (
   const [cachedPosition, setCachedPosition] = useState(0);
 
   const videoRef = props.videoRef || _videoRef;
+
+  useEffect(() => {
+    let active = true;
+
+    Brightness.getBrightnessAsync()
+      .then((brightness) => {
+        if (active) {
+          originalBrightness.current = brightness;
+        }
+      })
+      .catch((brightnessError) => {
+        console.error('Error reading initial brightness:', brightnessError);
+      });
+
+    return () => {
+      active = false;
+
+      const restoreBrightness = async () => {
+        try {
+          if (Platform.OS === 'android') {
+            await Brightness.restoreSystemBrightnessAsync();
+          } else if (originalBrightness.current !== null) {
+            await Brightness.setBrightnessAsync(originalBrightness.current);
+          }
+        } catch (brightnessError) {
+          console.error('Error resetting brightness:', brightnessError);
+        }
+      };
+
+      void restoreBrightness();
+    };
+  }, []);
 
   const {clearControlTimeout, resetControlTimeout, setControlTimeout} =
     useControlTimeout({
