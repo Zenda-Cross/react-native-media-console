@@ -41,10 +41,6 @@ type GesturesProps = {
   setPlayback: (rate: number) => void;
   clearControlTimeout: () => void;
   setControlTimeout: () => void;
-  controlSeekRequest?: {
-    id: number;
-    side: 'left' | 'right';
-  } | null;
 };
 
 const SWIPE_RANGE = 370;
@@ -54,16 +50,11 @@ const Ripple = React.memo(
     visible,
     isLeft,
     totalTime,
-    showControls,
   }: {
     visible: boolean;
     isLeft: boolean;
     totalTime: number;
-    showControls: boolean;
   }) => {
-    const screenDimensions = useMemo(() => Dimensions.get('window'), []);
-    const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = screenDimensions;
-
     const scale = useSharedValue(0);
     const opacity = useSharedValue(0);
 
@@ -96,57 +87,80 @@ const Ripple = React.memo(
       [],
     );
 
-    const rippleDiameter = Math.max(
-      SCREEN_HEIGHT * 1.05,
-      SCREEN_WIDTH * 0.72,
+    const contentRippleStyle = useAnimatedStyle(
+      () => ({
+        opacity: Math.min(opacity.value * 3.2, 1),
+        transform: [{scale: scale.value}],
+      }),
+      [],
     );
 
     const containerStyle = useMemo(
       () => ({
         position: 'absolute' as const,
-        top: '50%' as const,
-        marginTop: -rippleDiameter / 2 + (showControls ? -12 : 0),
-        left: isLeft ? -rippleDiameter * 0.2 : undefined,
-        right: isLeft ? undefined : -rippleDiameter * 0.2,
-        width: rippleDiameter,
-        height: rippleDiameter,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        width: '100%' as const,
+        height: '100%' as const,
         zIndex: 999,
       }),
-      [showControls, isLeft, rippleDiameter],
+      [],
     );
 
     const innerStyle = useMemo(
       () => ({
         position: 'absolute' as const,
-        width: '100%' as const,
-        height: '100%' as const,
+        top: '-20%' as const,
+        left: isLeft ? ('-48%' as const) : undefined,
+        right: isLeft ? undefined : ('-48%' as const),
+        width: '90%' as const,
+        height: '140%' as const,
         backgroundColor: 'black',
-        justifyContent: 'center' as const,
-        alignItems: 'center' as const,
-        borderRadius: rippleDiameter / 2,
+        borderRadius: 9999,
       }),
-      [rippleDiameter],
+      [isLeft],
+    );
+
+    const contentStyle = useMemo(
+      () => ({
+        position: 'absolute' as const,
+        top: '50%' as const,
+        marginTop: -34,
+        left: isLeft ? ('25%' as const) : undefined,
+        right: isLeft ? undefined : ('25%' as const),
+        marginLeft: isLeft ? -40 : 0,
+        marginRight: isLeft ? 0 : -40,
+        width: 80,
+        alignItems: 'center' as const,
+      }),
+      [isLeft],
     );
 
     const textStyle = useMemo(
       () => ({
         color: 'white',
         marginTop: 8,
-        fontSize: 12,
+        fontSize: 18,
+        fontWeight: '700' as const,
       }),
       [],
     );
 
     return visible ? (
-      <View style={containerStyle as any}>
-        <Animated.View style={[innerStyle, rippleStyle]}>
+      <View style={containerStyle as any} pointerEvents="none">
+        <Animated.View style={[innerStyle, rippleStyle]} />
+        <Animated.View style={[contentStyle, contentRippleStyle]}>
           <Icon
             name={isLeft ? 'fast-rewind' : 'fast-forward'}
             size={28}
             color="white"
           />
           {!isNaN(totalTime) && totalTime > 0 && (
-            <Text style={textStyle}>{Math.floor(totalTime)}s</Text>
+            <Text style={textStyle}>
+              {isLeft ? '-' : '+'}{Math.floor(totalTime)}
+            </Text>
           )}
         </Animated.View>
       </View>
@@ -163,12 +177,10 @@ const Gestures = ({
   tapActionTimeout,
   tapAnywhereToPause,
   rewindTime = 10,
-  showControls,
   disableGesture,
   setPlayback,
   clearControlTimeout,
   setControlTimeout,
-  controlSeekRequest,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
   const [isLeftRipple, setIsLeftRipple] = useState(false);
@@ -189,7 +201,6 @@ const Gestures = ({
   const currentSideRef = useRef<'left' | 'right' | null>(null);
   const tapCountRef = useRef(0);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastControlSeekRequestId = useRef<number | null>(null);
   const lastTapTimeRef = useRef(0);
   const originalSettings = useRef({
     volume: 0,
@@ -363,43 +374,6 @@ const Gestures = ({
     ],
   );
 
-  const handleControlSeek = useCallback(
-    (side: 'left' | 'right') => {
-      clearControlTimeout();
-
-      if (currentSideRef.current !== side) {
-        resetState();
-        isDoubleTapRef.current = true;
-        currentSideRef.current = side;
-        // The gesture path counts the initial single tap, while a control
-        // press is already an intentional seek. Start it at one skip.
-        tapCountRef.current = 2;
-      } else {
-        tapCountRef.current += 1;
-      }
-
-      const skipTime = rewindTime * (tapCountRef.current - 1);
-      setTotalSkipTime(skipTime);
-      setRippleVisible(true);
-      setIsLeftRipple(side === 'left');
-
-      if (skipTimeoutRef.current) {
-        clearTimeout(skipTimeoutRef.current);
-      }
-      skipTimeoutRef.current = setTimeout(handleSkip, 500);
-    }, [clearControlTimeout, handleSkip, resetState, rewindTime],
-  );
-
-  useEffect(() => {
-    if (
-      controlSeekRequest &&
-      controlSeekRequest.id !== lastControlSeekRequestId.current
-    ) {
-      lastControlSeekRequestId.current = controlSeekRequest.id;
-      handleControlSeek(controlSeekRequest.side);
-    }
-  }, [controlSeekRequest, handleControlSeek]);
-
   const updateSystemVolume = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
     VolumeManager.setVolume(clampedVolume);
@@ -478,8 +452,8 @@ const Gestures = ({
           right: isVolume ? undefined : ('7%' as const),
           backgroundColor: 'rgba(0, 0, 0, 0.55)',
           borderRadius: 18,
-          minWidth: 48,
-          paddingHorizontal: 12,
+          width: 56,
+          paddingHorizontal: 8,
           paddingVertical: 14,
           alignItems: 'center' as const,
           zIndex: 1000,
@@ -673,6 +647,18 @@ const Gestures = ({
     [],
   );
 
+  const visualOverlayStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 100000,
+    }),
+    [],
+  );
+
   const leftPressableStyle = useMemo(
     () => ({
       flex: 1,
@@ -685,8 +671,8 @@ const Gestures = ({
 
   const rightPressableStyle = useMemo(
     () => ({
-      top: 40,
       flex: 1,
+      top: 40,
       height: '100%' as const,
       position: 'relative' as const,
     }),
@@ -712,60 +698,55 @@ const Gestures = ({
     return null;
   }
   return (
-    <GestureHandlerRootView style={containerStyle}>
-      <GestureDetector gesture={panGesture}>
-        <View style={gestureContainerStyle}>
-          {/* Left side for brightness */}
-          <Pressable onPress={handleLeftTap} style={leftPressableStyle}>
-            <Ripple
-              visible={rippleVisible && isLeftRipple}
-              showControls={showControls}
-              isLeft={true}
-              totalTime={totalSkipTime}
+    <>
+      <GestureHandlerRootView style={containerStyle}>
+        <GestureDetector gesture={panGesture}>
+          <View style={gestureContainerStyle}>
+            <Pressable onPress={handleLeftTap} style={leftPressableStyle} />
+            <Pressable
+              onPress={handleRightTap}
+              style={rightPressableStyle}
+              onLongPress={() => {
+                setPlayback(2);
+                show2xToast();
+              }}
+              onPressOut={() => {
+                setPlayback(1);
+                hideToast();
+              }}
             />
-          </Pressable>
+          </View>
+        </GestureDetector>
+      </GestureHandlerRootView>
 
-          {/* Right side for volume */}
-          <Pressable
-            onPress={handleRightTap}
-            style={rightPressableStyle}
-            onLongPress={() => {
-              setPlayback(2);
-              show2xToast();
-            }}
-            onPressOut={() => {
-              setPlayback(1);
-              hideToast();
-            }}>
-            <Ripple
-              visible={rippleVisible && !isLeftRipple}
-              showControls={showControls}
-              isLeft={false}
-              totalTime={totalSkipTime}
-            />
-          </Pressable>
-        </View>
-      </GestureDetector>
-      {/* 2x speed toast */}
-      {toastMessage ? (
-        <Animated.View
-          style={[toastContainerStyle as any, toastAnimatedStyle]}
-          pointerEvents="none">
-          <Text style={toastTextStyle}>{toastMessage}</Text>
-        </Animated.View>
-      ) : null}
-      {/* Overlays */}
-      <ControlOverlay
-        value={displayVolume}
-        isVisible={isVolumeVisible}
-        isVolume={true}
-      />
-      <ControlOverlay
-        value={displayBrightness}
-        isVisible={isBrightnessVisible}
-        isVolume={false}
-      />
-    </GestureHandlerRootView>
+      <View style={visualOverlayStyle} pointerEvents="none">
+        <Ripple
+          visible={rippleVisible && isLeftRipple}
+          isLeft={true}
+          totalTime={totalSkipTime}
+        />
+        <Ripple
+          visible={rippleVisible && !isLeftRipple}
+          isLeft={false}
+          totalTime={totalSkipTime}
+        />
+        {toastMessage ? (
+          <Animated.View style={[toastContainerStyle as any, toastAnimatedStyle]}>
+            <Text style={toastTextStyle}>{toastMessage}</Text>
+          </Animated.View>
+        ) : null}
+        <ControlOverlay
+          value={displayVolume}
+          isVisible={isVolumeVisible}
+          isVolume={true}
+        />
+        <ControlOverlay
+          value={displayBrightness}
+          isVisible={isBrightnessVisible}
+          isVolume={false}
+        />
+      </View>
+    </>
   );
 };
 

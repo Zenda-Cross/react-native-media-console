@@ -55,7 +55,9 @@ export const Seekbar = ({
         <Text style={{color: 'hsl(0, 0%, 70%)'}}>
           {formatTime({
             duration,
-            time,
+            time: showTimeRemaining
+              ? Math.max(0, duration - (time ?? 0))
+              : time,
             showDuration,
             showHours,
             showTimeRemaining,

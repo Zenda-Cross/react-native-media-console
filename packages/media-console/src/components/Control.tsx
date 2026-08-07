@@ -17,6 +17,7 @@ export const Control = ({
   controlRef,
   disabled,
   style = {},
+  resetControlTimeout,
   ...props
 }: ControlProps) => {
   const [focused, setFocused] = useState(false);
@@ -36,6 +37,7 @@ export const Control = ({
       activeOpacity={1}
       onPress={() => {
         callback && callback();
+        resetControlTimeout && resetControlTimeout();
       }}
       style={[styles.control, style, focused && focusedStyle]}
       {...props}>

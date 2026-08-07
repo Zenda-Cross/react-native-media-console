@@ -111,11 +111,6 @@ const AnimatedVideoPlayer = (
   const [buffering, setBuffering] = useState(false);
   const [cachedDuration, setCachedDuration] = useState(0);
   const [cachedPosition, setCachedPosition] = useState(0);
-  const [controlSeekRequest, setControlSeekRequest] = useState<{
-    id: number;
-    side: 'left' | 'right';
-  } | null>(null);
-  const controlSeekId = useRef(0);
 
   const videoRef = props.videoRef || _videoRef;
 
@@ -627,11 +622,6 @@ const AnimatedVideoPlayer = (
     [currentTime, rewindTime, videoRef],
   );
 
-  const requestControlSeek = useCallback((side: 'left' | 'right') => {
-    controlSeekId.current += 1;
-    setControlSeekRequest({id: controlSeekId.current, side});
-  }, []);
-
   // Memoize onBuffer callback
   const onBuffer = useCallback((e: {isBuffering: boolean}) => {
     setBuffering(e.isBuffering);
@@ -728,8 +718,8 @@ const AnimatedVideoPlayer = (
                     togglePlayPause={togglePlayPause}
                     resetControlTimeout={resetControlTimeout}
                     showControls={showControls}
-                    onPressRewind={() => requestControlSeek('left')}
-                    onPressForward={() => requestControlSeek('right')}
+                    onPressRewind={rewind}
+                    onPressForward={forward}
                     buffering={buffering}
                     primaryColor={seekColor}
                   />
@@ -749,7 +739,6 @@ const AnimatedVideoPlayer = (
                   setPlayback={setPlaybackRate}
                   clearControlTimeout={clearControlTimeout}
                   setControlTimeout={setControlTimeout}
-                  controlSeekRequest={controlSeekRequest}
                 />
                 <BottomControls
                   animations={animations}

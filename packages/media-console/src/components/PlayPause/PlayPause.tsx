@@ -65,9 +65,7 @@ export const PlayPause = ({
           disabled={!showControls}
           callback={onPressRewind}
           resetControlTimeout={resetControlTimeout}>
-          <TouchableOpacity pointerEvents="none">
-            <Image source={rewind} style={styles.rewind} />
-          </TouchableOpacity>
+          <Image source={rewind} style={styles.rewind} />
         </Control>
       ) : null}
       <Control
@@ -90,9 +88,7 @@ export const PlayPause = ({
           disabled={!showControls}
           callback={onPressForward}
           resetControlTimeout={resetControlTimeout}>
-          <TouchableOpacity pointerEvents="none">
-            <Image source={forward} style={styles.forward} />
-          </TouchableOpacity>
+          <Image source={forward} style={styles.forward} />
         </Control>
       ) : null}
     </AnimatedView>
