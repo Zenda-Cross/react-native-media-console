@@ -92,6 +92,8 @@ export const BottomControls = ({
       showTimeRemaining={showTimeRemaining}
       duration={duration}
       time={currentTime}
+      toggleTimer={toggleTimer}
+      resetControlTimeout={resetControlTimeout}
     />
   );
 

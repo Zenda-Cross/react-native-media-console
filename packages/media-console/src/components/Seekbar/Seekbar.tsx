@@ -1,8 +1,7 @@
 import React, {Dispatch, SetStateAction} from 'react';
-import {View, GestureResponderHandlers} from 'react-native';
+import {View, GestureResponderHandlers, Pressable, Text} from 'react-native';
 import {styles} from './styles';
 import {formatTime} from '@8man/react-native-media-console/src/utils';
-import {Text} from 'react-native';
 
 interface SeekbarProps {
   seekerFillWidth: number;
@@ -16,6 +15,8 @@ interface SeekbarProps {
   showDuration: boolean;
   showTimeRemaining: boolean;
   showHours: boolean;
+  toggleTimer: () => void;
+  resetControlTimeout: () => void;
 }
 
 export const Seekbar = ({
@@ -30,6 +31,8 @@ export const Seekbar = ({
   showTimeRemaining,
   time,
   duration,
+  toggleTimer,
+  resetControlTimeout,
 }: SeekbarProps) => {
   return (
     <View
@@ -39,11 +42,17 @@ export const Seekbar = ({
         justifyContent: 'center',
         alignItems: 'flex-end',
       }}>
-      <View>
-        <Text
-          style={{
-            color: 'hsl(0, 0%, 70%)',
-          }}>
+      <Pressable
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel={
+          showTimeRemaining ? 'Show elapsed time' : 'Show remaining time'
+        }
+        onPress={() => {
+          toggleTimer();
+          resetControlTimeout();
+        }}>
+        <Text style={{color: 'hsl(0, 0%, 70%)'}}>
           {formatTime({
             duration,
             time,
@@ -52,7 +61,7 @@ export const Seekbar = ({
             showTimeRemaining,
           })}
         </Text>
-      </View>
+      </Pressable>
       <View
         style={{...styles.container, width: '80%'}}
         collapsable={false}
@@ -60,19 +69,17 @@ export const Seekbar = ({
         <View
           style={styles.track}
           onLayout={(event) => setSeekerWidth(event.nativeEvent.layout.width)}
-          pointerEvents={'none'}>
+          pointerEvents="none">
           <View
-            style={[
-              {
-                width: cachedPosition,
-                backgroundColor: '#dedede',
-                height: 4,
-                position: 'absolute',
-                top: 0,
-                borderRadius: 3,
-              },
-            ]}
-            pointerEvents={'none'}
+            style={{
+              width: cachedPosition,
+              backgroundColor: '#dedede',
+              height: 4,
+              position: 'absolute',
+              top: 0,
+              borderRadius: 3,
+            }}
+            pointerEvents="none"
           />
           <View
             style={[
@@ -82,26 +89,26 @@ export const Seekbar = ({
                 backgroundColor: seekColor || '#FFF',
               },
             ]}
-            pointerEvents={'none'}
+            pointerEvents="none"
           />
         </View>
         <View
           style={[styles.handle, {left: seekerPosition}]}
-          pointerEvents={'none'}>
+          pointerEvents="none">
           <View
             style={[styles.circle, {backgroundColor: seekColor || '#FFF'}]}
-            pointerEvents={'none'}
+            pointerEvents="none"
           />
         </View>
       </View>
-      <View style={{}}>
+      <View>
         <Text style={{color: 'hsl(0, 0%, 70%)'}}>
           {formatTime({
             duration,
             time: duration,
             showDuration,
             showHours,
-            showTimeRemaining,
+            showTimeRemaining: false,
           })}
         </Text>
       </View>

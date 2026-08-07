@@ -83,9 +83,6 @@ const AnimatedVideoPlayer = (
 
   const mounted = useRef(false);
   const _videoRef = useRef<VideoRef>(null);
-  const controlTimeout = useRef<ReturnType<typeof setTimeout>>(
-    setTimeout(() => {}),
-  ).current;
   const tapActionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [_resizeMode, setResizeMode] = useState<ResizeMode>(ResizeMode.CONTAIN);
   const [_paused, setPaused] = useState<boolean>(paused);
@@ -114,12 +111,16 @@ const AnimatedVideoPlayer = (
   const [buffering, setBuffering] = useState(false);
   const [cachedDuration, setCachedDuration] = useState(0);
   const [cachedPosition, setCachedPosition] = useState(0);
+  const [controlSeekRequest, setControlSeekRequest] = useState<{
+    id: number;
+    side: 'left' | 'right';
+  } | null>(null);
+  const controlSeekId = useRef(0);
 
   const videoRef = props.videoRef || _videoRef;
 
   const {clearControlTimeout, resetControlTimeout, setControlTimeout} =
     useControlTimeout({
-      controlTimeout,
       controlTimeoutDelay,
       mounted: mounted.current,
       showControls,
@@ -626,6 +627,11 @@ const AnimatedVideoPlayer = (
     [currentTime, rewindTime, videoRef],
   );
 
+  const requestControlSeek = useCallback((side: 'left' | 'right') => {
+    controlSeekId.current += 1;
+    setControlSeekRequest({id: controlSeekId.current, side});
+  }, []);
+
   // Memoize onBuffer callback
   const onBuffer = useCallback((e: {isBuffering: boolean}) => {
     setBuffering(e.isBuffering);
@@ -722,8 +728,8 @@ const AnimatedVideoPlayer = (
                     togglePlayPause={togglePlayPause}
                     resetControlTimeout={resetControlTimeout}
                     showControls={showControls}
-                    onPressRewind={rewind}
-                    onPressForward={forward}
+                    onPressRewind={() => requestControlSeek('left')}
+                    onPressForward={() => requestControlSeek('right')}
                     buffering={buffering}
                     primaryColor={seekColor}
                   />
@@ -741,6 +747,9 @@ const AnimatedVideoPlayer = (
                   showControls={showControls}
                   disableGesture={disableGesture}
                   setPlayback={setPlaybackRate}
+                  clearControlTimeout={clearControlTimeout}
+                  setControlTimeout={setControlTimeout}
+                  controlSeekRequest={controlSeekRequest}
                 />
                 <BottomControls
                   animations={animations}

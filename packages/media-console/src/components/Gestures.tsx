@@ -14,6 +14,7 @@ import Animated, {
   useSharedValue,
   withDelay,
   runOnJS,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import * as Brightness from 'expo-brightness';
@@ -38,6 +39,12 @@ type GesturesProps = {
   showControls: boolean;
   disableGesture: boolean;
   setPlayback: (rate: number) => void;
+  clearControlTimeout: () => void;
+  setControlTimeout: () => void;
+  controlSeekRequest?: {
+    id: number;
+    side: 'left' | 'right';
+  } | null;
 };
 
 const SWIPE_RANGE = 370;
@@ -61,27 +68,24 @@ const Ripple = React.memo(
     const opacity = useSharedValue(0);
 
     React.useEffect(() => {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+
       if (visible) {
-        scale.value = withSequence(
-          withTiming(1.5, {duration: 400}),
-          withDelay(
-            400,
-            withTiming(0, {
-              duration: 400,
-            }),
-          ),
-        );
+        // Reset before every skip so repeated double taps replay the effect
+        // instead of leaving a partially composited Android layer behind.
+        scale.value = 0.9;
+        opacity.value = 0;
+        scale.value = withTiming(1, {duration: 180});
         opacity.value = withSequence(
-          withTiming(0.4, {duration: 400}),
-          withDelay(
-            400,
-            withTiming(0, {
-              duration: 400,
-            }),
-          ),
+          withTiming(0.28, {duration: 100}),
+          withDelay(120, withTiming(0, {duration: 180})),
         );
+      } else {
+        scale.value = 0.9;
+        opacity.value = 0;
       }
-    }, [visible, scale, opacity]);
+    }, [visible, totalTime, scale, opacity]);
 
     const rippleStyle = useAnimatedStyle(
       () => ({
@@ -92,17 +96,23 @@ const Ripple = React.memo(
       [],
     );
 
+    const rippleDiameter = Math.max(
+      SCREEN_HEIGHT * 1.05,
+      SCREEN_WIDTH * 0.72,
+    );
+
     const containerStyle = useMemo(
       () => ({
         position: 'absolute' as const,
-        top: showControls ? -70 : -45,
-        left: isLeft ? ('-10%' as const) : undefined,
-        right: isLeft ? undefined : ('-10%' as const),
-        width: SCREEN_WIDTH / 2.5,
-        height: SCREEN_HEIGHT,
+        top: '50%' as const,
+        marginTop: -rippleDiameter / 2 + (showControls ? -12 : 0),
+        left: isLeft ? -rippleDiameter * 0.2 : undefined,
+        right: isLeft ? undefined : -rippleDiameter * 0.2,
+        width: rippleDiameter,
+        height: rippleDiameter,
         zIndex: 999,
       }),
-      [showControls, isLeft, SCREEN_WIDTH, SCREEN_HEIGHT],
+      [showControls, isLeft, rippleDiameter],
     );
 
     const innerStyle = useMemo(
@@ -110,12 +120,12 @@ const Ripple = React.memo(
         position: 'absolute' as const,
         width: '100%' as const,
         height: '100%' as const,
-        backgroundColor: 'rgba(0,0,0,0.9)',
+        backgroundColor: 'black',
         justifyContent: 'center' as const,
         alignItems: 'center' as const,
-        borderRadius: SCREEN_HEIGHT / 2,
+        borderRadius: rippleDiameter / 2,
       }),
-      [SCREEN_HEIGHT],
+      [rippleDiameter],
     );
 
     const textStyle = useMemo(
@@ -156,6 +166,9 @@ const Gestures = ({
   showControls,
   disableGesture,
   setPlayback,
+  clearControlTimeout,
+  setControlTimeout,
+  controlSeekRequest,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
   const [isLeftRipple, setIsLeftRipple] = useState(false);
@@ -176,6 +189,7 @@ const Gestures = ({
   const currentSideRef = useRef<'left' | 'right' | null>(null);
   const tapCountRef = useRef(0);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastControlSeekRequestId = useRef<number | null>(null);
   const lastTapTimeRef = useRef(0);
   const originalSettings = useRef({
     volume: 0,
@@ -269,11 +283,15 @@ const Gestures = ({
       console.error('Error while skipping:', error);
     } finally {
       resetState();
+      setControlTimeout();
     }
-  }, [rewindTime, rewind, forward, resetState]);
+  }, [rewindTime, rewind, forward, resetState, setControlTimeout]);
 
   const handleTap = useCallback(
     (e: GestureResponderEvent, side: 'left' | 'right') => {
+      // Keep the controls timer from interrupting an active multi-tap seek.
+      // It is restarted after the accumulated seek has been applied.
+      clearControlTimeout();
       const now = Date.now();
       const touchX = e.nativeEvent.locationX;
       const touchY = e.nativeEvent.locationY;
@@ -341,8 +359,46 @@ const Gestures = ({
       doubleTapTime,
       rewindTime,
       handleSkip,
+      clearControlTimeout,
     ],
   );
+
+  const handleControlSeek = useCallback(
+    (side: 'left' | 'right') => {
+      clearControlTimeout();
+
+      if (currentSideRef.current !== side) {
+        resetState();
+        isDoubleTapRef.current = true;
+        currentSideRef.current = side;
+        // The gesture path counts the initial single tap, while a control
+        // press is already an intentional seek. Start it at one skip.
+        tapCountRef.current = 2;
+      } else {
+        tapCountRef.current += 1;
+      }
+
+      const skipTime = rewindTime * (tapCountRef.current - 1);
+      setTotalSkipTime(skipTime);
+      setRippleVisible(true);
+      setIsLeftRipple(side === 'left');
+
+      if (skipTimeoutRef.current) {
+        clearTimeout(skipTimeoutRef.current);
+      }
+      skipTimeoutRef.current = setTimeout(handleSkip, 500);
+    }, [clearControlTimeout, handleSkip, resetState, rewindTime],
+  );
+
+  useEffect(() => {
+    if (
+      controlSeekRequest &&
+      controlSeekRequest.id !== lastControlSeekRequestId.current
+    ) {
+      lastControlSeekRequestId.current = controlSeekRequest.id;
+      handleControlSeek(controlSeekRequest.side);
+    }
+  }, [controlSeekRequest, handleControlSeek]);
 
   const updateSystemVolume = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
@@ -417,29 +473,55 @@ const Gestures = ({
         () => ({
           position: 'absolute' as const,
           top: '50%' as const,
-          left: !isVolume ? undefined : ('15%' as const),
-          right: !isVolume ? ('15%' as const) : undefined,
-          transform: [
-            {translateX: 0 as const},
-            {translateY: showControls ? -20 : 0},
-          ] as const,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          borderRadius: 10,
-          minWidth: 50,
-          padding: 10,
+          marginTop: -102,
+          left: isVolume ? ('7%' as const) : undefined,
+          right: isVolume ? undefined : ('7%' as const),
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          borderRadius: 18,
+          minWidth: 48,
+          paddingHorizontal: 12,
+          paddingVertical: 14,
           alignItems: 'center' as const,
           zIndex: 1000,
         }),
-        [isVolume, showControls],
+        [isVolume],
       );
 
       const textStyle = useMemo(
         () => ({
           color: 'white',
-          marginTop: 5,
+          marginBottom: 9,
+          fontSize: 13,
+          fontWeight: '600' as const,
         }),
         [],
       );
+
+      const trackStyle = useMemo(
+        () => ({
+          width: 6,
+          height: 120,
+          borderRadius: 3,
+          overflow: 'hidden' as const,
+          justifyContent: 'flex-end' as const,
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        }),
+        [],
+      );
+
+      const fillStyle = useMemo(
+        () => ({
+          width: '100%' as const,
+          height: `${Math.round(
+            Math.max(0, Math.min(1, value)) * 100,
+          )}%` as `${number}%`,
+          borderRadius: 3,
+          backgroundColor: 'white',
+        }),
+        [value],
+      );
+
+      const iconStyle = useMemo(() => ({marginTop: 10}), []);
 
       const iconName = useMemo(() => {
         if (isVolume) {
@@ -456,8 +538,13 @@ const Gestures = ({
 
       return (
         <Animated.View style={containerStyle as any}>
-          <Icon name={iconName} size={24} color="white" />
-          <Text style={textStyle}>{Math.round(value * 100)}</Text>
+          <Text style={textStyle}>{Math.round(value * 100)}%</Text>
+          <View style={trackStyle}>
+            <View style={fillStyle} />
+          </View>
+          <View style={iconStyle}>
+            <Icon name={iconName} size={22} color="white" />
+          </View>
         </Animated.View>
       );
     },
