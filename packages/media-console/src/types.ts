@@ -282,4 +282,7 @@ export interface VideoPlayerProps extends ReactVideoProps {
    * @default false
    */
   hideAllControlls?: boolean;
+
+  /** Fired once when a seek drag magnetically returns to its starting point. */
+  onSeekSnap?: () => void;
 }

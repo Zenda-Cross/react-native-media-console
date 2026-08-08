@@ -1,5 +1,13 @@
-import React, {useCallback, useState, useEffect, useRef, useMemo} from 'react';
-import {Platform, View} from 'react-native';
+import React, {
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+} from 'react';
+import {NativeModules, Platform, View} from 'react-native';
 import * as Brightness from 'expo-brightness';
 import Video, {
   OnLoadData,
@@ -23,6 +31,11 @@ import {_onBack} from './utils';
 import {_styles} from './styles';
 import type {VideoPlayerProps, WithRequiredProperty} from './types';
 import Gestures from '@8man/react-native-media-console/src/components/Gestures';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 const volumeWidth = 150;
 const iconOffset = 0;
@@ -80,6 +93,7 @@ const AnimatedVideoPlayer = (
     testID,
     disableGesture = false,
     hideAllControlls = false,
+    onSeekSnap,
   } = props;
 
   const mounted = useRef(false);
@@ -103,9 +117,12 @@ const AnimatedVideoPlayer = (
   const [volumePosition, setVolumePositionState] = useState(0);
   const [seekerPosition, setSeekerPositionState] = useState(0);
   const [volumeOffset, setVolumeOffset] = useState(0);
-  const [seekerOffset, setSeekerOffset] = useState(0);
   const [seekerWidth, setSeekerWidth] = useState(0);
   const [seeking, setSeeking] = useState(false);
+  const seekingRef = useRef(false);
+  const seekWasActive = useRef(false);
+  const wasPausedBeforeSeek = useRef(false);
+  const [seekSnapPosition, setSeekSnapPosition] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [error, setError] = useState(false);
@@ -113,8 +130,35 @@ const AnimatedVideoPlayer = (
   const [buffering, setBuffering] = useState(false);
   const [cachedDuration, setCachedDuration] = useState(0);
   const [cachedPosition, setCachedPosition] = useState(0);
+  const [seekThumbnailUri, setSeekThumbnailUri] = useState<string | null>(null);
+  const [seekThumbnailLoading, setSeekThumbnailLoading] = useState(false);
+  const seekThumbnailRequestId = useRef(0);
+  const seekThumbnailMemoryCache = useRef(new Map<string, string>());
+  const zoomScale = useSharedValue(1);
+  const zoomStartScale = useSharedValue(1);
+
+  const zoomAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{scale: zoomScale.value}],
+  }));
 
   const videoRef = props.videoRef || _videoRef;
+
+  const setSeekingState = useCallback<
+    Dispatch<SetStateAction<boolean>>
+  >((value) => {
+    const nextValue =
+      typeof value === 'function' ? value(seekingRef.current) : value;
+    // Update synchronously so a progress event arriving between pointer-down
+    // and React's next render cannot move the seek thumb back to playback.
+    seekingRef.current = nextValue;
+    setSeeking(nextValue);
+  }, []);
+
+  // The resize control is also the explicit way to return to the normal view.
+  useEffect(() => {
+    zoomStartScale.value = 1;
+    zoomScale.value = withTiming(1, {duration: 180});
+  }, [resizeMode, zoomScale, zoomStartScale]);
 
   useEffect(() => {
     let active = true;
@@ -257,7 +301,7 @@ const AnimatedVideoPlayer = (
   const _onProgress = useCallback(
     (data: OnProgressData) => {
       setLoading(false);
-      if (!seeking && !buffering) {
+      if (!seekingRef.current && !buffering) {
         const newCurrentTime = data.currentTime;
         const newCachedDuration = data.playableDuration;
 
@@ -398,7 +442,6 @@ const AnimatedVideoPlayer = (
 
       // Batch state updates to prevent excessive re-renders
       setSeekerPositionState(positionValue);
-      setSeekerOffset(positionValue);
       setSeekerFillWidth(positionValue);
     },
     [constrainToSeekerMinMax],
@@ -450,19 +493,19 @@ const AnimatedVideoPlayer = (
 
   const {volumePanResponder, seekPanResponder} = usePanResponders({
     duration,
-    seekerOffset,
     volumeOffset,
     loading,
     seekerWidth,
-    seeking,
     seekerPosition,
     seek: seekVideo,
     clearControlTimeout,
     setVolumePosition,
     setSeekerPosition,
-    setSeeking,
+    setSeeking: setSeekingState,
+    setSeekSnapPosition,
     setControlTimeout,
     onEnd: events.onEnd,
+    onSeekSnap,
     horizontal: horizontalPan,
     inverted: invertedPan,
   });
@@ -497,6 +540,30 @@ const AnimatedVideoPlayer = (
   useEffect(() => {
     setPaused(paused);
   }, [paused]);
+
+  useEffect(() => {
+    if (seeking) {
+      if (!seekWasActive.current) {
+        seekWasActive.current = true;
+        wasPausedBeforeSeek.current = _paused;
+      }
+
+      // Hold the current frame while the user chooses a position. Keep
+      // enforcing this in case an external paused prop or buffering callback
+      // attempts to resume playback during the gesture.
+      if (!_paused) {
+        setPaused(true);
+      }
+      return;
+    }
+
+    if (seekWasActive.current) {
+      seekWasActive.current = false;
+      if (!wasPausedBeforeSeek.current) {
+        setPaused(false);
+      }
+    }
+  }, [_paused, seeking]);
 
   useEffect(() => {
     if (_paused) {
@@ -659,7 +726,7 @@ const AnimatedVideoPlayer = (
   // Memoize onBuffer callback
   const onBuffer = useCallback((e: {isBuffering: boolean}) => {
     setBuffering(e.isBuffering);
-    if (!e.isBuffering) {
+    if (!e.isBuffering && !seekingRef.current) {
       setPaused(false);
     }
   }, []);
@@ -676,6 +743,148 @@ const AnimatedVideoPlayer = (
     }
     return String(source);
   }, [source]);
+
+  const thumbnailSource = useMemo(() => {
+    if (!source) return null;
+    if (typeof source === 'string') return source;
+    if (typeof source === 'object' && 'uri' in source) {
+      return typeof source.uri === 'string' ? source.uri : null;
+    }
+    return null;
+  }, [source]);
+
+  const thumbnailHeaders = useMemo(() => {
+    if (
+      source &&
+      typeof source === 'object' &&
+      'headers' in source &&
+      source.headers
+    ) {
+      return source.headers;
+    }
+    return {};
+  }, [source]);
+
+  const thumbnailHeadersKey = useMemo(
+    () =>
+      Object.entries(thumbnailHeaders)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([name, value]) => `${name}:${value}`)
+        .join('|'),
+    [thumbnailHeaders],
+  );
+
+  const seekPreviewTime = useMemo(() => {
+    if (!seeking || seekerWidth <= 0 || duration <= 0) return currentTime;
+    return duration * Math.max(0, Math.min(1, seekerPosition / seekerWidth));
+  }, [currentTime, duration, seekerPosition, seekerWidth, seeking]);
+
+  // Reuse one representative frame for a timeline region instead of asking
+  // the native decoder for another frame after every tiny thumb movement.
+  // Short videos retain finer previews while feature-length content uses
+  // wider regions to keep scrubbing responsive.
+  const seekThumbnailTimestampMs = useMemo(() => {
+    if (duration <= 0) return 0;
+    const bucketSeconds = duration >= 3600 ? 15 : duration >= 1200 ? 10 : 5;
+    const bucketStart =
+      Math.floor(Math.max(0, seekPreviewTime) / bucketSeconds) * bucketSeconds;
+    const representativeTime = Math.min(
+      duration,
+      bucketStart + bucketSeconds / 2,
+    );
+    return Math.round(representativeTime * 1000);
+  }, [duration, seekPreviewTime]);
+
+  // The responder clears the active timer on touch-down. Keep enforcing that
+  // invariant while scrubbing in case another control schedules a timeout.
+  useEffect(() => {
+    if (seeking) {
+      clearControlTimeout();
+    }
+  }, [clearControlTimeout, seeking]);
+
+  useEffect(() => {
+    const requestId = ++seekThumbnailRequestId.current;
+    const thumbnailModule = NativeModules.VideoThumbnailModule as
+      | {
+          getThumbnail: (
+            uri: string,
+            timestampMs: number,
+            headers: Record<string, string>,
+            options: Record<string, number | boolean>,
+          ) => Promise<{uri: string}>;
+        }
+      | undefined;
+
+    if (!seeking) {
+      setSeekThumbnailUri(null);
+      setSeekThumbnailLoading(false);
+      return;
+    }
+
+    if (!thumbnailSource || !thumbnailModule) {
+      setSeekThumbnailUri(null);
+      setSeekThumbnailLoading(false);
+      return;
+    }
+
+    const memoryCacheKey = `${thumbnailSource}|${thumbnailHeadersKey}|${seekThumbnailTimestampMs}`;
+    const memoryCachedUri = seekThumbnailMemoryCache.current.get(memoryCacheKey);
+    if (memoryCachedUri) {
+      // Refresh insertion order so the bounded map behaves as an LRU cache.
+      seekThumbnailMemoryCache.current.delete(memoryCacheKey);
+      seekThumbnailMemoryCache.current.set(memoryCacheKey, memoryCachedUri);
+      setSeekThumbnailUri(memoryCachedUri);
+      setSeekThumbnailLoading(false);
+      return;
+    }
+
+    // Never leave the previous timestamp's frame visible while the debounced
+    // request for the new position is pending.
+    setSeekThumbnailUri(null);
+    setSeekThumbnailLoading(true);
+    const debounce = setTimeout(() => {
+      thumbnailModule
+        .getThumbnail(
+          thumbnailSource,
+          seekThumbnailTimestampMs,
+          thumbnailHeaders,
+          {
+          maxWidth: 320,
+          maxHeight: 180,
+          quality: 78,
+          cache: true,
+          },
+        )
+        .then(result => {
+          seekThumbnailMemoryCache.current.set(memoryCacheKey, result.uri);
+          if (seekThumbnailMemoryCache.current.size > 48) {
+            const oldestKey = seekThumbnailMemoryCache.current.keys().next().value;
+            if (oldestKey) {
+              seekThumbnailMemoryCache.current.delete(oldestKey);
+            }
+          }
+          if (seekThumbnailRequestId.current === requestId) {
+            setSeekThumbnailUri(result.uri);
+            setSeekThumbnailLoading(false);
+          }
+        })
+        .catch(() => {
+          if (seekThumbnailRequestId.current === requestId) {
+            setSeekThumbnailUri(null);
+            setSeekThumbnailLoading(false);
+          }
+        });
+    }, 180);
+
+    return () => clearTimeout(debounce);
+  }, [
+    seeking,
+    seekThumbnailTimestampMs,
+    thumbnailHeaders,
+    thumbnailHeadersKey,
+    thumbnailSource,
+  ]);
 
   // Keep track of previous source to prevent unnecessary resets
   const prevSourceUri = useRef(sourceUri);
@@ -707,20 +916,30 @@ const AnimatedVideoPlayer = (
       onScreenTouch={events.onScreenTouch}
       testID={testID}>
       <View style={[_styles.player.container, styles.containerStyle]}>
-        <Video
-          controls={false}
-          {...props}
-          {...events}
-          ref={videoRef || _videoRef}
-          resizeMode={resizeMode}
-          volume={_volume}
-          paused={_paused}
-          muted={_muted}
-          rate={_playbackRate}
-          style={[_styles.player.video, styles.videoStyle]}
-          source={source}
-          onBuffer={onBuffer}
-        />
+        <Animated.View
+          pointerEvents="none"
+          style={[_styles.player.video, zoomAnimatedStyle]}>
+          <Video
+            controls={false}
+            {...props}
+            {...events}
+            ref={videoRef || _videoRef}
+            resizeMode={resizeMode}
+            volume={_volume}
+            paused={_paused}
+            muted={_muted}
+            rate={_playbackRate}
+            style={[_styles.player.video, styles.videoStyle]}
+            source={source}
+            onBuffer={onBuffer}
+            // SurfaceView is rendered in a separate Android surface and does
+            // not follow React Native transforms. Pinch zoom therefore needs
+            // TextureView, which remains part of the normal view hierarchy.
+            useTextureView={
+              Platform.OS === 'android' ? true : props.useTextureView
+            }
+          />
+        </Animated.View>
         {
           <>
             <Error error={error} />
@@ -773,6 +992,8 @@ const AnimatedVideoPlayer = (
                   setPlayback={setPlaybackRate}
                   clearControlTimeout={clearControlTimeout}
                   setControlTimeout={setControlTimeout}
+                  zoomScale={zoomScale}
+                  zoomStartScale={zoomStartScale}
                 />
                 <BottomControls
                   animations={animations}
@@ -792,6 +1013,11 @@ const AnimatedVideoPlayer = (
                   seekerPosition={seekerPosition}
                   setSeekerWidth={setSeekerWidth}
                   cachedPosition={cachedPosition}
+                  seeking={seeking}
+                  seekPreviewTime={seekPreviewTime}
+                  seekThumbnailUri={seekThumbnailUri}
+                  seekThumbnailLoading={seekThumbnailLoading}
+                  seekSnapPosition={seekSnapPosition}
                   isFullscreen={isFullscreen}
                   disableFullscreen={disableFullscreen}
                   toggleFullscreen={toggleFullscreen}

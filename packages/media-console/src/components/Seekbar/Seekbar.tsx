@@ -1,5 +1,12 @@
-import React, {Dispatch, SetStateAction} from 'react';
-import {View, GestureResponderHandlers, Pressable, Text} from 'react-native';
+import React, {Dispatch, SetStateAction, useMemo, useState} from 'react';
+import {
+  ActivityIndicator,
+  View,
+  GestureResponderHandlers,
+  Image,
+  Pressable,
+  Text,
+} from 'react-native';
 import {styles} from './styles';
 import {formatTime} from '@8man/react-native-media-console/src/utils';
 
@@ -17,7 +24,14 @@ interface SeekbarProps {
   showHours: boolean;
   toggleTimer: () => void;
   resetControlTimeout: () => void;
+  seeking: boolean;
+  previewTime: number;
+  thumbnailUri: string | null;
+  thumbnailLoading: boolean;
+  snapPosition: number | null;
 }
+
+const PREVIEW_WIDTH = 160;
 
 export const Seekbar = ({
   seekColor,
@@ -33,7 +47,31 @@ export const Seekbar = ({
   duration,
   toggleTimer,
   resetControlTimeout,
+  seeking,
+  previewTime,
+  thumbnailUri,
+  thumbnailLoading,
+  snapPosition,
 }: SeekbarProps) => {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const previewLeft = useMemo(
+    () =>
+      Math.max(
+        0,
+        Math.min(
+          Math.max(0, trackWidth - PREVIEW_WIDTH),
+          seekerPosition - PREVIEW_WIDTH / 2,
+        ),
+      ),
+    [seekerPosition, trackWidth],
+  );
+  const timestampStyle = {
+    color: 'hsl(0, 0%, 70%)',
+    fontSize: 12,
+    fontWeight: '300' as const,
+    letterSpacing: 0.2,
+  };
+
   return (
     <View
       style={{
@@ -52,7 +90,7 @@ export const Seekbar = ({
           toggleTimer();
           resetControlTimeout();
         }}>
-        <Text style={{color: 'hsl(0, 0%, 70%)'}}>
+        <Text style={timestampStyle}>
           {formatTime({
             duration,
             time: showTimeRemaining
@@ -68,18 +106,52 @@ export const Seekbar = ({
         style={{...styles.container, width: '80%'}}
         collapsable={false}
         {...seekerPanHandlers}>
+        {seeking && trackWidth > 0 ? (
+          <View style={[styles.preview, {left: previewLeft}]} pointerEvents="none">
+            {thumbnailUri ? (
+              <Image
+                key={thumbnailUri}
+                source={{uri: thumbnailUri}}
+                style={styles.previewImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.previewPlaceholder} />
+            )}
+            {thumbnailLoading ? (
+              <View style={styles.previewLoading}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            ) : null}
+            <View style={styles.previewTimestampContainer}>
+              <Text style={styles.previewTimestamp}>
+                {formatTime({
+                  duration,
+                  time: previewTime,
+                  showDuration,
+                  showHours,
+                  showTimeRemaining: false,
+                })}
+              </Text>
+            </View>
+          </View>
+        ) : null}
         <View
           style={styles.track}
-          onLayout={(event) => setSeekerWidth(event.nativeEvent.layout.width)}
+          onLayout={event => {
+            const width = event.nativeEvent.layout.width;
+            setTrackWidth(width);
+            setSeekerWidth(width);
+          }}
           pointerEvents="none">
           <View
             style={{
               width: cachedPosition,
               backgroundColor: '#dedede',
-              height: 4,
+              height: 2,
               position: 'absolute',
               top: 0,
-              borderRadius: 3,
+              borderRadius: 1,
             }}
             pointerEvents="none"
           />
@@ -94,6 +166,12 @@ export const Seekbar = ({
             pointerEvents="none"
           />
         </View>
+        {seeking && snapPosition !== null ? (
+          <View
+            style={[styles.snapMarker, {left: snapPosition - 1}]}
+            pointerEvents="none"
+          />
+        ) : null}
         <View
           style={[styles.handle, {left: seekerPosition}]}
           pointerEvents="none">
@@ -104,7 +182,7 @@ export const Seekbar = ({
         </View>
       </View>
       <View>
-        <Text style={{color: 'hsl(0, 0%, 70%)'}}>
+        <Text style={timestampStyle}>
           {formatTime({
             duration,
             time: duration,

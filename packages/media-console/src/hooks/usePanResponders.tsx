@@ -1,12 +1,10 @@
-import {Dispatch, SetStateAction, useEffect} from 'react';
+import {Dispatch, SetStateAction, useEffect, useRef} from 'react';
 import {PanResponder} from 'react-native';
 
 interface PanRespondersProps {
   duration: number;
-  seekerOffset: number;
   volumeOffset: number;
   loading: boolean;
-  seeking: boolean;
   seekerPosition: number;
   seek?: (time: number, tolerance?: number) => void;
   seekerWidth: number;
@@ -14,18 +12,18 @@ interface PanRespondersProps {
   setVolumePosition: (position: number) => void;
   setSeekerPosition: (position: number) => void;
   setSeeking: Dispatch<SetStateAction<boolean>>;
+  setSeekSnapPosition: Dispatch<SetStateAction<number | null>>;
   setControlTimeout: () => void;
   onEnd: () => void;
+  onSeekSnap?: () => void;
   horizontal?: boolean;
   inverted?: boolean;
 }
 
 export const usePanResponders = ({
   duration,
-  seekerOffset,
   volumeOffset,
   loading,
-  seeking,
   seekerPosition,
   seek,
   seekerWidth,
@@ -33,11 +31,26 @@ export const usePanResponders = ({
   setVolumePosition,
   setSeekerPosition,
   setSeeking,
+  setSeekSnapPosition,
   setControlTimeout,
   onEnd,
+  onSeekSnap,
   horizontal = true,
   inverted = false,
 }: PanRespondersProps) => {
+  const latestSeekerPosition = useRef(seekerPosition);
+  const seekStartPosition = useRef(0);
+  const seekTrackPageOffset = useRef(0);
+  const hasLeftStartPoint = useRef(false);
+  const isSnappedToStart = useRef(false);
+
+  const SNAP_ENTER_DISTANCE = 12;
+  const SNAP_EXIT_DISTANCE = 24;
+
+  useEffect(() => {
+    latestSeekerPosition.current = seekerPosition;
+  }, [seekerPosition]);
+
   const volumePanResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
@@ -60,17 +73,72 @@ export const usePanResponders = ({
     onPanResponderGrant: (evt) => {
       setSeeking(true);
       clearControlTimeout();
-      const position = evt.nativeEvent.locationX;
+      const localPointer = horizontal
+        ? evt.nativeEvent.locationX
+        : evt.nativeEvent.locationY;
+      const pagePointer = horizontal
+        ? evt.nativeEvent.pageX
+        : evt.nativeEvent.pageY;
+      // Keep a stable screen-space origin for the complete gesture. Android's
+      // locationX/locationY can change coordinate frames when children are
+      // added or rerendered while the responder is active (the seek preview is
+      // one such child), which makes the thumb stop following the finger.
+      seekTrackPageOffset.current = pagePointer - localPointer;
+      const position = inverted ? seekerWidth - localPointer : localPointer;
+      seekStartPosition.current = position;
+      hasLeftStartPoint.current = false;
+      isSnappedToStart.current = false;
+      setSeekSnapPosition(position);
+      latestSeekerPosition.current = position;
       setSeekerPosition(position);
     },
     onPanResponderMove: (_evt, gestureState) => {
-      const diff = horizontal ? gestureState.dx : gestureState.dy;
-      const position = seekerOffset + diff * (inverted ? -1 : 1);
+      const pagePointer = horizontal ? gestureState.moveX : gestureState.moveY;
+      const pointerPosition = pagePointer - seekTrackPageOffset.current;
+      const fallbackDiff = horizontal ? gestureState.dx : gestureState.dy;
+      const fallbackPosition =
+        seekStartPosition.current + fallbackDiff * (inverted ? -1 : 1);
+      const rawPosition = Number.isFinite(pointerPosition)
+        ? inverted
+          ? seekerWidth - pointerPosition
+          : pointerPosition
+        : fallbackPosition;
+      const distanceFromStart = Math.abs(
+        rawPosition - seekStartPosition.current,
+      );
+
+      if (
+        !hasLeftStartPoint.current &&
+        distanceFromStart >= SNAP_EXIT_DISTANCE
+      ) {
+        hasLeftStartPoint.current = true;
+      }
+
+      let position = rawPosition;
+      if (hasLeftStartPoint.current) {
+        if (isSnappedToStart.current) {
+          if (distanceFromStart <= SNAP_EXIT_DISTANCE) {
+            position = seekStartPosition.current;
+          } else {
+            isSnappedToStart.current = false;
+          }
+        } else if (distanceFromStart <= SNAP_ENTER_DISTANCE) {
+          isSnappedToStart.current = true;
+          position = seekStartPosition.current;
+          onSeekSnap?.();
+        }
+      }
+
+      latestSeekerPosition.current = position;
       setSeekerPosition(position);
       setSeeking(true);
     },
     onPanResponderRelease: () => {
-      const percent = seekerPosition / seekerWidth;
+      const constrainedPosition = Math.max(
+        0,
+        Math.min(seekerWidth, latestSeekerPosition.current),
+      );
+      const percent = seekerWidth > 0 ? constrainedPosition / seekerWidth : 0;
       const time = duration * percent;
 
       if (time >= duration && !loading) {
@@ -80,17 +148,24 @@ export const usePanResponders = ({
       }
 
       setSeeking(false);
+      setSeekSnapPosition(null);
       seek && seek(time);
+      setControlTimeout();
     },
+    onPanResponderTerminate: () => {
+      const constrainedPosition = Math.max(
+        0,
+        Math.min(seekerWidth, latestSeekerPosition.current),
+      );
+      const percent = seekerWidth > 0 ? constrainedPosition / seekerWidth : 0;
+      setSeeking(false);
+      setSeekSnapPosition(null);
+      seek && seek(duration * percent);
+      setControlTimeout();
+    },
+    onPanResponderTerminationRequest: () => false,
+    onShouldBlockNativeResponder: () => true,
   });
-
-  useEffect(() => {
-    if (seeking) {
-      const percent = seekerPosition / seekerWidth;
-      const time = duration * percent;
-      seek && seek(time);
-    }
-  }, [duration, seek, seekerPosition, seekerWidth, seeking]);
 
   return {volumePanResponder, seekPanResponder};
 };

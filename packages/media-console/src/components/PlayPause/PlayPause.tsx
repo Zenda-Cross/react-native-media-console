@@ -1,11 +1,8 @@
 // @ts-nocheck
 import React, {createRef} from 'react';
-import {
-  Image,
-  Platform,
-  TouchableHighlight,
-  TouchableOpacity,
-} from 'react-native';
+import {Platform, TouchableHighlight} from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Svg, {G, Path, Rect} from 'react-native-svg';
 import {Control} from '../Control';
 import {NullControl} from '../NullControl';
 import type {VideoAnimations} from '../../types';
@@ -29,10 +26,39 @@ interface PlayPauseProps {
   primaryColor: string;
 }
 
-const play = require('../../assets/img/playNew.png');
-const pause = require('../../assets/img/pauseNew.png');
-const rewind = require('../../assets/img/rewind10.png');
-const forward = require('../../assets/img/forward10.png');
+const SeekTenIcon = ({
+  direction,
+  size = 54,
+  color = 'white',
+}: {
+  direction: 'backward' | 'forward';
+  size?: number;
+  color?: string;
+}) => {
+  const transform =
+    direction === 'backward' ? 'translate(64 0) scale(-1 1)' : undefined;
+
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 68"
+      fill="none"
+      stroke={color}
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round">
+      <G opacity={0.72}>
+        <G transform={transform}>
+          <Path d="M30.1 12.52A25.5 25.5 0 1 0 54 26.03" />
+          <Path d="m25 5.5 8 7-8 7m8.5-15L40 12l-6.5 7.5" />
+        </G>
+        <Path d="M24 44.5v-15l-3.5 2.7" />
+        <Rect x="31" y="29.5" width="11" height="16" rx="5.5" />
+      </G>
+    </Svg>
+  );
+};
 
 export const PlayPause = ({
   animations: {AnimatedView, ...animations},
@@ -65,7 +91,7 @@ export const PlayPause = ({
           disabled={!showControls}
           callback={onPressRewind}
           resetControlTimeout={resetControlTimeout}>
-          <Image source={rewind} style={styles.rewind} />
+          <SeekTenIcon direction="backward" />
         </Control>
       ) : null}
       <Control
@@ -78,9 +104,11 @@ export const PlayPause = ({
         {buffering ? (
           <Loader color={primaryColor} />
         ) : (
-          <TouchableOpacity onPress={togglePlayPause}>
-            <Image source={paused ? play : pause} style={styles.play} />
-          </TouchableOpacity>
+          <MaterialIcons
+            name={paused ? 'play-arrow' : 'pause'}
+            size={70}
+            color="rgba(255,255,255,0.94)"
+          />
         )}
       </Control>
       {!disableSeekButtons ? (
@@ -88,7 +116,7 @@ export const PlayPause = ({
           disabled={!showControls}
           callback={onPressForward}
           resetControlTimeout={resetControlTimeout}>
-          <Image source={forward} style={styles.forward} />
+          <SeekTenIcon direction="forward" />
         </Control>
       ) : null}
     </AnimatedView>

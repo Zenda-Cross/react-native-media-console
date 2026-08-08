@@ -1,8 +1,6 @@
 import {
   View,
   Text,
-  Pressable,
-  GestureResponderEvent,
   Dimensions,
 } from 'react-native';
 import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
@@ -15,7 +13,9 @@ import Animated, {
   runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
+import type {SharedValue} from 'react-native-reanimated';
 import Icon from '@expo/vector-icons/MaterialIcons';
+import AntDesign from '@expo/vector-icons/AntDesign';
 import * as Brightness from 'expo-brightness';
 import {VolumeManager} from 'react-native-volume-manager';
 
@@ -40,6 +40,8 @@ type GesturesProps = {
   setPlayback: (rate: number) => void;
   clearControlTimeout: () => void;
   setControlTimeout: () => void;
+  zoomScale: SharedValue<number>;
+  zoomStartScale: SharedValue<number>;
 };
 
 const SWIPE_RANGE = 370;
@@ -131,8 +133,11 @@ const Ripple = React.memo(
         right: isLeft ? undefined : ('25%' as const),
         marginLeft: isLeft ? -40 : 0,
         marginRight: isLeft ? 0 : -40,
-        width: 80,
+        width: 104,
+        flexDirection: 'row' as const,
+        justifyContent: 'center' as const,
         alignItems: 'center' as const,
+        gap: 6,
       }),
       [isLeft],
     );
@@ -140,8 +145,7 @@ const Ripple = React.memo(
     const textStyle = useMemo(
       () => ({
         color: 'white',
-        marginTop: 8,
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: '700' as const,
       }),
       [],
@@ -151,15 +155,16 @@ const Ripple = React.memo(
       <View style={containerStyle as any} pointerEvents="none">
         <Animated.View style={[innerStyle, rippleStyle]} />
         <Animated.View style={[contentStyle, contentRippleStyle]}>
-          <Icon
-            name={isLeft ? 'fast-rewind' : 'fast-forward'}
-            size={28}
-            color="white"
-          />
+          {isLeft && (
+            <AntDesign name="double-left" size={24} color="white" />
+          )}
           {!isNaN(totalTime) && totalTime > 0 && (
             <Text style={textStyle}>
               {isLeft ? '-' : '+'}{Math.floor(totalTime)}
             </Text>
+          )}
+          {!isLeft && (
+            <AntDesign name="double-right" size={24} color="white" />
           )}
         </Animated.View>
       </View>
@@ -180,6 +185,8 @@ const Gestures = ({
   setPlayback,
   clearControlTimeout,
   setControlTimeout,
+  zoomScale,
+  zoomStartScale,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
   const [isLeftRipple, setIsLeftRipple] = useState(false);
@@ -298,14 +305,11 @@ const Gestures = ({
   }, [rewindTime, rewind, forward, resetState, setControlTimeout]);
 
   const handleTap = useCallback(
-    (e: GestureResponderEvent, side: 'left' | 'right') => {
+    (touchX: number, touchY: number, side: 'left' | 'right') => {
       // Keep the controls timer from interrupting an active multi-tap seek.
       // It is restarted after the accumulated seek has been applied.
       clearControlTimeout();
       const now = Date.now();
-      const touchX = e.nativeEvent.locationX;
-      const touchY = e.nativeEvent.locationY;
-
       if (now - lastTapTimeRef.current > 500) {
         resetState();
       }
@@ -388,6 +392,8 @@ const Gestures = ({
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(!disableGesture)
+        .maxPointers(1)
         .minDistance(10) // Minimum distance before gesture starts
         .onStart((event) => {
           'worklet';
@@ -429,7 +435,7 @@ const Gestures = ({
           runOnJS(setIsVolumeVisible)(false);
           runOnJS(setIsBrightnessVisible)(false);
         }),
-    [SCREEN_WIDTH, updateSystemBrightness, updateSystemVolume],
+    [SCREEN_WIDTH, disableGesture, updateSystemBrightness, updateSystemVolume],
   );
 
   const ControlOverlay = React.memo(
@@ -596,6 +602,91 @@ const Gestures = ({
     [],
   );
 
+  const pinchGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .enabled(true)
+        .shouldCancelWhenOutside(false)
+        .onStart(() => {
+          'worklet';
+          zoomStartScale.value = zoomScale.value;
+          runOnJS(clearControlTimeout)();
+        })
+        .onUpdate((event) => {
+          'worklet';
+          // Keep the original view as the minimum, but intentionally do not
+          // impose a maximum so the user controls how far to zoom.
+          zoomScale.value = Math.max(1, zoomStartScale.value * event.scale);
+        })
+        .onFinalize(() => {
+          'worklet';
+          zoomStartScale.value = zoomScale.value;
+          runOnJS(setControlTimeout)();
+        }),
+    [clearControlTimeout, setControlTimeout, zoomScale, zoomStartScale],
+  );
+
+  const tapGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        // Tapping to show/hide controls is not an optional swipe gesture.
+        // The locked player does not render this component at all.
+        .enabled(true)
+        .maxDistance(14)
+        .onEnd((event, success) => {
+          'worklet';
+          if (success) {
+            const side = event.x < SCREEN_WIDTH / 2 ? 'left' : 'right';
+            runOnJS(handleTap)(event.x, event.y, side);
+          }
+        }),
+    [SCREEN_WIDTH, handleTap],
+  );
+
+  const longPressGesture = useMemo(
+    () =>
+      Gesture.LongPress()
+        .enabled(!disableGesture)
+        .minDuration(450)
+        .maxDistance(18)
+        .onStart(event => {
+          'worklet';
+          if (event.x >= SCREEN_WIDTH / 2) {
+            runOnJS(setPlayback)(2);
+            runOnJS(show2xToast)();
+          }
+        })
+        .onFinalize(event => {
+          'worklet';
+          if (event.x >= SCREEN_WIDTH / 2) {
+            runOnJS(setPlayback)(1);
+            runOnJS(hideToast)();
+          }
+        }),
+    [
+      SCREEN_WIDTH,
+      disableGesture,
+      hideToast,
+      setPlayback,
+      show2xToast,
+    ],
+  );
+
+  const tapOrLongPressGesture = useMemo(
+    () => Gesture.Race(longPressGesture, tapGesture),
+    [longPressGesture, tapGesture],
+  );
+
+  const composedGesture = useMemo(
+    () =>
+      Gesture.Simultaneous(
+        pinchGesture,
+        panGesture,
+        tapOrLongPressGesture,
+      ),
+    [panGesture, pinchGesture, tapOrLongPressGesture],
+  );
+
   const visualOverlayStyle = useMemo(
     () => ({
       position: 'absolute' as const,
@@ -608,63 +699,11 @@ const Gestures = ({
     [],
   );
 
-  const leftPressableStyle = useMemo(
-    () => ({
-      flex: 1,
-      top: 40,
-      height: '100%' as const,
-      position: 'relative' as const,
-    }),
-    [],
-  );
-
-  const rightPressableStyle = useMemo(
-    () => ({
-      flex: 1,
-      top: 40,
-      height: '100%' as const,
-      position: 'relative' as const,
-    }),
-    [],
-  );
-
-  // Memoized handler functions
-  const handleLeftTap = useCallback(
-    (e: GestureResponderEvent) => {
-      handleTap(e, 'left');
-    },
-    [handleTap],
-  );
-
-  const handleRightTap = useCallback(
-    (e: GestureResponderEvent) => {
-      handleTap(e, 'right');
-    },
-    [handleTap],
-  );
-
-  if (disableGesture) {
-    return null;
-  }
   return (
     <>
       <GestureHandlerRootView style={containerStyle}>
-        <GestureDetector gesture={panGesture}>
-          <View style={gestureContainerStyle}>
-            <Pressable onPress={handleLeftTap} style={leftPressableStyle} />
-            <Pressable
-              onPress={handleRightTap}
-              style={rightPressableStyle}
-              onLongPress={() => {
-                setPlayback(2);
-                show2xToast();
-              }}
-              onPressOut={() => {
-                setPlayback(1);
-                hideToast();
-              }}
-            />
-          </View>
+        <GestureDetector gesture={composedGesture}>
+          <View style={gestureContainerStyle} />
         </GestureDetector>
       </GestureHandlerRootView>
 

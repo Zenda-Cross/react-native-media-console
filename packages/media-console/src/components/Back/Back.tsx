@@ -1,5 +1,5 @@
 import React from 'react';
-import {Image} from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {Control} from '../Control';
 
 interface BackProps {
@@ -11,7 +11,11 @@ interface BackProps {
 export const Back = ({onBack, showControls}: BackProps) => {
   return (
     <Control callback={onBack} disabled={!showControls}>
-      <Image source={require('../../assets/img/back.png')} />
+      <MaterialIcons
+        name="arrow-back-ios-new"
+        size={24}
+        color="rgba(255,255,255,0.68)"
+      />
     </Control>
   );
 };

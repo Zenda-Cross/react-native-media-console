@@ -1,7 +1,7 @@
 import React, {ReactNode} from 'react';
 import {
-  TouchableWithoutFeedback,
   Platform,
+  View,
   StyleProp,
   ViewStyle,
 } from 'react-native';
@@ -35,12 +35,15 @@ export const PlatformSupport = ({
     );
   }
 
+  // Mobile input is owned by the RNGH gesture surface inside VideoPlayer.
+  // Wrapping it in a TouchableWithoutFeedback creates a second recognizer for
+  // every tap (and shares the same delayed-tap ref), causing controls to toggle
+  // twice and preventing a two-pointer pinch from being recognized reliably.
   return (
-    <TouchableWithoutFeedback
+    <View
       testID={testID}
-      onPress={onScreenTouch}
       style={[_styles.player.container, containerStyles]}>
       {children}
-    </TouchableWithoutFeedback>
+    </View>
   );
 };

@@ -35,6 +35,11 @@ interface BottomControlsProps {
   disableFullscreen: boolean;
   toggleFullscreen: () => void;
   cachedPosition: number;
+  seeking: boolean;
+  seekPreviewTime: number;
+  seekThumbnailUri: string | null;
+  seekThumbnailLoading: boolean;
+  seekSnapPosition: number | null;
 }
 
 export const BottomControls = ({
@@ -58,6 +63,11 @@ export const BottomControls = ({
   disableFullscreen,
   toggleFullscreen,
   cachedPosition,
+  seeking,
+  seekPreviewTime,
+  seekThumbnailUri,
+  seekThumbnailLoading,
+  seekSnapPosition,
 }: BottomControlsProps) => {
   //@ts-ignore
   const timerControl = disableTimer ? (
@@ -94,6 +104,11 @@ export const BottomControls = ({
       time={currentTime}
       toggleTimer={toggleTimer}
       resetControlTimeout={resetControlTimeout}
+      seeking={seeking}
+      previewTime={seekPreviewTime}
+      thumbnailUri={seekThumbnailUri}
+      thumbnailLoading={seekThumbnailLoading}
+      snapPosition={seekSnapPosition}
     />
   );
 
