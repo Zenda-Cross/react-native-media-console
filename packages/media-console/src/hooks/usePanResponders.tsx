@@ -40,6 +40,7 @@ export const usePanResponders = ({
 }: PanRespondersProps) => {
   const latestSeekerPosition = useRef(seekerPosition);
   const seekStartPosition = useRef(0);
+  const dragStartPosition = useRef(0);
   const seekTrackPageOffset = useRef(0);
   const hasLeftStartPoint = useRef(false);
   const isSnappedToStart = useRef(false);
@@ -85,10 +86,17 @@ export const usePanResponders = ({
       // one such child), which makes the thumb stop following the finger.
       seekTrackPageOffset.current = pagePointer - localPointer;
       const position = inverted ? seekerWidth - localPointer : localPointer;
-      seekStartPosition.current = position;
+      const playbackPosition = Math.max(
+        0,
+        Math.min(seekerWidth, latestSeekerPosition.current),
+      );
+      // The magnetic snap point represents where playback was when seeking
+      // began. The touched position is only the initial position of the thumb.
+      seekStartPosition.current = playbackPosition;
+      dragStartPosition.current = position;
       hasLeftStartPoint.current = false;
       isSnappedToStart.current = false;
-      setSeekSnapPosition(position);
+      setSeekSnapPosition(playbackPosition);
       latestSeekerPosition.current = position;
       setSeekerPosition(position);
     },
@@ -97,7 +105,7 @@ export const usePanResponders = ({
       const pointerPosition = pagePointer - seekTrackPageOffset.current;
       const fallbackDiff = horizontal ? gestureState.dx : gestureState.dy;
       const fallbackPosition =
-        seekStartPosition.current + fallbackDiff * (inverted ? -1 : 1);
+        dragStartPosition.current + fallbackDiff * (inverted ? -1 : 1);
       const rawPosition = Number.isFinite(pointerPosition)
         ? inverted
           ? seekerWidth - pointerPosition
