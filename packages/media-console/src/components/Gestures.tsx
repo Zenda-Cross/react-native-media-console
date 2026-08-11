@@ -36,16 +36,33 @@ type GesturesProps = {
   tapAnywhereToPause: boolean;
   rewindTime: number;
   showControls: boolean;
+  /**
+   * Whether the seek buttons are actually rendered. When they are, they own the
+   * skip feedback and animate their own label. When they are not, there is no
+   * button to animate and the ripple has to stand in. Defaults to false so the
+   * feedback is never silently dropped.
+   */
+  seekButtonsEnabled?: boolean;
   disableGesture: boolean;
   setPlayback: (rate: number) => void;
   clearControlTimeout: () => void;
   setControlTimeout: () => void;
   zoomScale: SharedValue<number>;
   zoomStartScale: SharedValue<number>;
+  onSkipFeedback?: (side: 'left' | 'right', totalTime: number) => void;
 };
 
 const SWIPE_RANGE = 370;
 
+// Total runtime of the ripple's opacity sequence below (100 in + 120 hold +
+// 180 out). The slab is only unmounted once this has played out.
+const RIPPLE_FADE_DURATION = 400;
+
+/**
+ * Full-height rounded slab that flashes on the tapped half of the screen.
+ * This is the feedback used while the controls are hidden; when they are
+ * visible the seek button animates its own label instead.
+ */
 const Ripple = React.memo(
   ({
     visible,
@@ -59,7 +76,7 @@ const Ripple = React.memo(
     const scale = useSharedValue(0);
     const opacity = useSharedValue(0);
 
-    React.useEffect(() => {
+    useEffect(() => {
       cancelAnimation(scale);
       cancelAnimation(opacity);
 
@@ -88,6 +105,8 @@ const Ripple = React.memo(
       [],
     );
 
+    // The label has to stay legible while the slab behind it is still faint,
+    // so its opacity is driven harder than the slab's.
     const contentRippleStyle = useAnimatedStyle(
       () => ({
         opacity: Math.min(opacity.value * 3.2, 1),
@@ -155,17 +174,14 @@ const Ripple = React.memo(
       <View style={containerStyle as any} pointerEvents="none">
         <Animated.View style={[innerStyle, rippleStyle]} />
         <Animated.View style={[contentStyle, contentRippleStyle]}>
-          {isLeft && (
-            <AntDesign name="double-left" size={24} color="white" />
-          )}
+          {isLeft && <AntDesign name="double-left" size={24} color="white" />}
           {!isNaN(totalTime) && totalTime > 0 && (
             <Text style={textStyle}>
-              {isLeft ? '-' : '+'}{Math.floor(totalTime)}
+              {isLeft ? '-' : '+'}
+              {Math.floor(totalTime)}
             </Text>
           )}
-          {!isLeft && (
-            <AntDesign name="double-right" size={24} color="white" />
-          )}
+          {!isLeft && <AntDesign name="double-right" size={24} color="white" />}
         </Animated.View>
       </View>
     ) : null;
@@ -181,12 +197,14 @@ const Gestures = ({
   tapActionTimeout,
   tapAnywhereToPause,
   rewindTime = 10,
+  seekButtonsEnabled = false,
   disableGesture,
   setPlayback,
   clearControlTimeout,
   setControlTimeout,
   zoomScale,
   zoomStartScale,
+  onSkipFeedback,
 }: GesturesProps) => {
   const [rippleVisible, setRippleVisible] = useState(false);
   const [isLeftRipple, setIsLeftRipple] = useState(false);
@@ -207,6 +225,7 @@ const Gestures = ({
   const currentSideRef = useRef<'left' | 'right' | null>(null);
   const tapCountRef = useRef(0);
   const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const rippleHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapTimeRef = useRef(0);
   const originalSettings = useRef({
     volume: 0,
@@ -270,13 +289,14 @@ const Gestures = ({
     });
   }, [toastOpacity]);
 
+  // The accumulated label is owned by the seek button and fades out on its own
+  // timer, so resetting the tap tracking must not clear it. Otherwise the
+  // number would disappear the instant the seek is applied.
   const resetState = useCallback(() => {
     isDoubleTapRef.current = false;
     currentSideRef.current = null;
     tapCountRef.current = 0;
     lastTapTimeRef.current = 0;
-    setTotalSkipTime(0);
-    setRippleVisible(false);
     if (skipTimeoutRef.current) {
       clearTimeout(skipTimeoutRef.current);
       skipTimeoutRef.current = null;
@@ -284,15 +304,17 @@ const Gestures = ({
   }, []);
 
   const handleSkip = useCallback(async () => {
+    const side = currentSideRef.current;
+
     try {
       const count = Number(tapCountRef.current) - 1;
       const baseTime = Number(rewindTime);
       const skipTime = baseTime * count;
 
       if (!isNaN(skipTime) && skipTime > 0) {
-        if (currentSideRef.current === 'left') {
+        if (side === 'left') {
           rewind(skipTime);
-        } else if (currentSideRef.current === 'right') {
+        } else if (side === 'right') {
           forward(skipTime);
         }
       }
@@ -300,9 +322,30 @@ const Gestures = ({
       console.error('Error while skipping:', error);
     } finally {
       resetState();
+      // Release the label as soon as the seek lands, otherwise it hangs
+      // outside the arc waiting on an unrelated fallback timer.
+      onSkipFeedback?.(side ?? 'right', 0);
+      // The ripple fades itself out, so it is only unmounted afterwards. That
+      // keeps `visible` flipping false, which is what lets the next double tap
+      // replay the animation from the start.
+      if (rippleHideRef.current) {
+        clearTimeout(rippleHideRef.current);
+      }
+      rippleHideRef.current = setTimeout(() => {
+        setRippleVisible(false);
+        setTotalSkipTime(0);
+        rippleHideRef.current = null;
+      }, RIPPLE_FADE_DURATION);
       setControlTimeout();
     }
-  }, [rewindTime, rewind, forward, resetState, setControlTimeout]);
+  }, [
+    rewindTime,
+    rewind,
+    forward,
+    resetState,
+    setControlTimeout,
+    onSkipFeedback,
+  ]);
 
   const handleTap = useCallback(
     (touchX: number, touchY: number, side: 'left' | 'right') => {
@@ -343,14 +386,28 @@ const Gestures = ({
           const baseTime = Number(rewindTime);
           const newSkipTime = baseTime * count;
 
-          setTotalSkipTime(newSkipTime);
-          setRippleVisible(true);
-          setIsLeftRipple(side === 'left');
+          // Only one feedback style runs per seek. When the seek buttons are
+          // rendered they own the feedback and animate their own label; when
+          // they are switched off there is no button to animate, so the ripple
+          // stands in regardless of whether the rest of the controls are up.
+          if (seekButtonsEnabled) {
+            onSkipFeedback?.(side, newSkipTime);
+          } else {
+            if (rippleHideRef.current) {
+              clearTimeout(rippleHideRef.current);
+              rippleHideRef.current = null;
+            }
+            setTotalSkipTime(newSkipTime);
+            setIsLeftRipple(side === 'left');
+            setRippleVisible(true);
+          }
 
           if (skipTimeoutRef.current) {
             clearTimeout(skipTimeoutRef.current);
           }
-          skipTimeoutRef.current = setTimeout(handleSkip, 500);
+          // Window for stacking another tap onto the same seek. Kept short so
+          // the number does not sit out there long after the last tap.
+          skipTimeoutRef.current = setTimeout(handleSkip, 350);
         } else {
           resetState();
           isDoubleTapRef.current = true;
@@ -374,6 +431,8 @@ const Gestures = ({
       rewindTime,
       handleSkip,
       clearControlTimeout,
+      onSkipFeedback,
+      seekButtonsEnabled,
     ],
   );
 
@@ -575,6 +634,9 @@ const Gestures = ({
     return () => {
       if (skipTimeoutRef.current) {
         clearTimeout(skipTimeoutRef.current);
+      }
+      if (rippleHideRef.current) {
+        clearTimeout(rippleHideRef.current);
       }
       if (tapActionTimeout.current) {
         clearTimeout(tapActionTimeout.current);

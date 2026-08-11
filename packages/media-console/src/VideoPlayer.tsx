@@ -26,6 +26,7 @@ import {
   PlayPause,
   Overlay,
 } from './components';
+import {SeekControls} from './components/PlayPause/SeekButton';
 import {PlatformSupport} from './OSSupport';
 import {_onBack} from './utils';
 import {_styles} from './styles';
@@ -134,6 +135,9 @@ const AnimatedVideoPlayer = (
   const [seekThumbnailLoading, setSeekThumbnailLoading] = useState(false);
   const seekThumbnailRequestId = useRef(0);
   const seekThumbnailMemoryCache = useRef(new Map<string, string>());
+  const [skipFeedbackLeft, setSkipFeedbackLeft] = useState(0);
+  const [skipFeedbackRight, setSkipFeedbackRight] = useState(0);
+  const skipFeedbackResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zoomScale = useSharedValue(1);
   const zoomStartScale = useSharedValue(1);
 
@@ -699,6 +703,30 @@ const AnimatedVideoPlayer = (
     setPlaybackRate(rate);
   }, [rate]);
 
+  const handleSkipFeedback = useCallback(
+    (side: 'left' | 'right', totalTime: number) => {
+      if (side === 'left') {
+        setSkipFeedbackLeft(totalTime);
+        setSkipFeedbackRight(0);
+      } else {
+        setSkipFeedbackRight(totalTime);
+        setSkipFeedbackLeft(0);
+      }
+      if (skipFeedbackResetRef.current) {
+        clearTimeout(skipFeedbackResetRef.current);
+      }
+      if (totalTime > 0) {
+        // Safety net only. The gesture clears the feedback itself once the
+        // accumulated seek is applied, so this must not outlive that.
+        skipFeedbackResetRef.current = setTimeout(() => {
+          setSkipFeedbackLeft(0);
+          setSkipFeedbackRight(0);
+        }, 600);
+      }
+    },
+    [],
+  );
+
   const rewind = useCallback(
     (time?: number) => {
       const newTime =
@@ -965,14 +993,10 @@ const AnimatedVideoPlayer = (
                   <PlayPause
                     animations={animations}
                     disablePlayPause={disablePlayPause}
-                    disableSeekButtons={disableSeekButtons}
                     paused={_paused}
-                    // pauseLabel={pauseLabel}
                     togglePlayPause={togglePlayPause}
                     resetControlTimeout={resetControlTimeout}
                     showControls={showControls}
-                    onPressRewind={rewind}
-                    onPressForward={forward}
                     buffering={buffering}
                     primaryColor={seekColor}
                   />
@@ -988,12 +1012,16 @@ const AnimatedVideoPlayer = (
                   tapActionTimeout={tapActionTimeout}
                   tapAnywhereToPause={tapAnywhereToPause}
                   showControls={showControls}
+                  seekButtonsEnabled={
+                    !hideAllControlls && !disablePlayPause && !disableSeekButtons
+                  }
                   disableGesture={disableGesture}
                   setPlayback={setPlaybackRate}
                   clearControlTimeout={clearControlTimeout}
                   setControlTimeout={setControlTimeout}
                   zoomScale={zoomScale}
                   zoomStartScale={zoomStartScale}
+                  onSkipFeedback={handleSkipFeedback}
                 />
                 <BottomControls
                   animations={animations}
@@ -1027,6 +1055,17 @@ const AnimatedVideoPlayer = (
             )}
           </>
         }
+        {!hideAllControlls && !disablePlayPause && !disableSeekButtons ? (
+          <SeekControls
+            seekSeconds={rewindTime}
+            onPressRewind={rewind}
+            onPressForward={forward}
+            resetControlTimeout={resetControlTimeout}
+            showControls={showControls && !loading}
+            skipFeedbackLeft={skipFeedbackLeft}
+            skipFeedbackRight={skipFeedbackRight}
+          />
+        ) : null}
       </View>
     </PlatformSupport>
   );
