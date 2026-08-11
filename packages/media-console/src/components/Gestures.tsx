@@ -1,4 +1,5 @@
 import {View, Text, Dimensions} from 'react-native';
+import type {LayoutChangeEvent} from 'react-native';
 import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import Animated, {
   useAnimatedStyle,
@@ -352,6 +353,11 @@ const Gestures = ({
   });
 
   // Shared values
+  // Measured width of the gesture view. `event.x` is relative to that view, so
+  // the left/right split has to be measured rather than taken from the window:
+  // the view can be narrower than the screen, and the memoized window width
+  // below never updates on rotation. Falls back to the window until first layout.
+  const gestureWidth = useSharedValue(0);
   const volumeValue = useSharedValue(0);
   const brightnessValue = useSharedValue(0);
   const startVolume = useSharedValue(0);
@@ -575,7 +581,7 @@ const Gestures = ({
         .minDistance(10) // Minimum distance before gesture starts
         .onStart((event) => {
           'worklet';
-          const isLeftSide = event.x < SCREEN_WIDTH / 2;
+          const isLeftSide = event.x < (gestureWidth.value || SCREEN_WIDTH) / 2;
 
           if (isLeftSide) {
             startBrightness.value = brightnessValue.value;
@@ -587,7 +593,7 @@ const Gestures = ({
         })
         .onUpdate((event) => {
           'worklet';
-          const isLeftSide = event.x < SCREEN_WIDTH / 2;
+          const isLeftSide = event.x < (gestureWidth.value || SCREEN_WIDTH) / 2;
           const change = -event.translationY / SWIPE_RANGE;
 
           if (isLeftSide) {
@@ -613,7 +619,13 @@ const Gestures = ({
           runOnJS(setIsVolumeVisible)(false);
           runOnJS(setIsBrightnessVisible)(false);
         }),
-    [SCREEN_WIDTH, disableGesture, updateSystemBrightness, updateSystemVolume],
+    [
+      SCREEN_WIDTH,
+      gestureWidth,
+      disableGesture,
+      updateSystemBrightness,
+      updateSystemVolume,
+    ],
   );
 
   // Initialize and store original settings
@@ -691,6 +703,15 @@ const Gestures = ({
     [],
   );
 
+  // Records the real width of the tap surface. Fires again on rotation and on
+  // entering/leaving fullscreen, which is what keeps the midpoint honest.
+  const handleGestureLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      gestureWidth.value = event.nativeEvent.layout.width;
+    },
+    [gestureWidth],
+  );
+
   const pinchGesture = useMemo(
     () =>
       Gesture.Pinch()
@@ -725,11 +746,14 @@ const Gestures = ({
         .onEnd((event, success) => {
           'worklet';
           if (success) {
-            const side = event.x < SCREEN_WIDTH / 2 ? 'left' : 'right';
+            const side =
+              event.x < (gestureWidth.value || SCREEN_WIDTH) / 2
+                ? 'left'
+                : 'right';
             runOnJS(handleTap)(event.x, event.y, side);
           }
         }),
-    [SCREEN_WIDTH, handleTap],
+    [SCREEN_WIDTH, gestureWidth, handleTap],
   );
 
   const longPressGesture = useMemo(
@@ -740,19 +764,26 @@ const Gestures = ({
         .maxDistance(18)
         .onStart((event) => {
           'worklet';
-          if (event.x >= SCREEN_WIDTH / 2) {
+          if (event.x >= (gestureWidth.value || SCREEN_WIDTH) / 2) {
             runOnJS(setPlayback)(2);
             runOnJS(show2xToast)();
           }
         })
         .onFinalize((event) => {
           'worklet';
-          if (event.x >= SCREEN_WIDTH / 2) {
+          if (event.x >= (gestureWidth.value || SCREEN_WIDTH) / 2) {
             runOnJS(setPlayback)(1);
             runOnJS(hideToast)();
           }
         }),
-    [SCREEN_WIDTH, disableGesture, hideToast, setPlayback, show2xToast],
+    [
+      SCREEN_WIDTH,
+      gestureWidth,
+      disableGesture,
+      hideToast,
+      setPlayback,
+      show2xToast,
+    ],
   );
 
   const tapOrLongPressGesture = useMemo(
@@ -781,7 +812,7 @@ const Gestures = ({
     <>
       <GestureHandlerRootView style={containerStyle}>
         <GestureDetector gesture={composedGesture}>
-          <View style={gestureContainerStyle} />
+          <View style={gestureContainerStyle} onLayout={handleGestureLayout} />
         </GestureDetector>
       </GestureHandlerRootView>
 
