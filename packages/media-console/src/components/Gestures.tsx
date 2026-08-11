@@ -1,8 +1,4 @@
-import {
-  View,
-  Text,
-  Dimensions,
-} from 'react-native';
+import {View, Text, Dimensions} from 'react-native';
 import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import Animated, {
   useAnimatedStyle,
@@ -58,11 +54,6 @@ const SWIPE_RANGE = 370;
 // 180 out). The slab is only unmounted once this has played out.
 const RIPPLE_FADE_DURATION = 400;
 
-/**
- * Full-height rounded slab that flashes on the tapped half of the screen.
- * This is the feedback used while the controls are hidden; when they are
- * visible the seek button animates its own label instead.
- */
 const Ripple = React.memo(
   ({
     visible,
@@ -105,8 +96,6 @@ const Ripple = React.memo(
       [],
     );
 
-    // The label has to stay legible while the slab behind it is still faint,
-    // so its opacity is driven harder than the slab's.
     const contentRippleStyle = useAnimatedStyle(
       () => ({
         opacity: Math.min(opacity.value * 3.2, 1),
@@ -185,6 +174,136 @@ const Ripple = React.memo(
         </Animated.View>
       </View>
     ) : null;
+  },
+);
+
+const INDICATOR_FADE_IN = 120;
+const INDICATOR_FADE_OUT = 220;
+
+const ControlOverlay = React.memo(
+  ({
+    value,
+    isVisible,
+    isVolume,
+  }: {
+    value: number;
+    isVisible: boolean;
+    isVolume: boolean;
+  }) => {
+    const opacity = useSharedValue(0);
+    // Stays mounted for the length of the fade out. Unmounting straight from
+    // the gesture's onFinalize is what made it vanish instantly before.
+    const [mounted, setMounted] = useState(isVisible);
+    const unmountRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+      if (unmountRef.current) {
+        clearTimeout(unmountRef.current);
+        unmountRef.current = null;
+      }
+      cancelAnimation(opacity);
+
+      if (isVisible) {
+        setMounted(true);
+        opacity.value = withTiming(1, {duration: INDICATOR_FADE_IN});
+      } else {
+        opacity.value = withTiming(0, {duration: INDICATOR_FADE_OUT});
+        unmountRef.current = setTimeout(() => {
+          setMounted(false);
+          unmountRef.current = null;
+        }, INDICATOR_FADE_OUT);
+      }
+    }, [isVisible, opacity]);
+
+    useEffect(
+      () => () => {
+        if (unmountRef.current) {
+          clearTimeout(unmountRef.current);
+        }
+      },
+      [],
+    );
+
+    const fadeStyle = useAnimatedStyle(() => ({opacity: opacity.value}), []);
+
+    const containerStyle = useMemo(
+      () => ({
+        position: 'absolute' as const,
+        top: '50%' as const,
+        marginTop: -102,
+        left: isVolume ? ('7%' as const) : undefined,
+        right: isVolume ? undefined : ('7%' as const),
+        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+        borderRadius: 18,
+        width: 56,
+        paddingHorizontal: 8,
+        paddingVertical: 14,
+        alignItems: 'center' as const,
+        zIndex: 1000,
+      }),
+      [isVolume],
+    );
+
+    const textStyle = useMemo(
+      () => ({
+        color: 'white',
+        marginBottom: 9,
+        fontSize: 13,
+        fontWeight: '600' as const,
+      }),
+      [],
+    );
+
+    const trackStyle = useMemo(
+      () => ({
+        width: 6,
+        height: 120,
+        borderRadius: 3,
+        overflow: 'hidden' as const,
+        justifyContent: 'flex-end' as const,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      }),
+      [],
+    );
+
+    const fillStyle = useMemo(
+      () => ({
+        width: '100%' as const,
+        height: `${Math.round(
+          Math.max(0, Math.min(1, value)) * 100,
+        )}%` as `${number}%`,
+        borderRadius: 3,
+        backgroundColor: 'white',
+      }),
+      [value],
+    );
+
+    const iconStyle = useMemo(() => ({marginTop: 10}), []);
+
+    const iconName = useMemo(() => {
+      if (isVolume) {
+        return value === 0
+          ? 'volume-mute'
+          : value < 0.3
+          ? 'volume-down'
+          : 'volume-up';
+      }
+      return 'brightness-6';
+    }, [isVolume, value]);
+
+    if (!mounted) return null;
+
+    return (
+      <Animated.View style={[containerStyle as any, fadeStyle]}>
+        <Text style={textStyle}>{Math.round(value * 100)}%</Text>
+        <View style={trackStyle}>
+          <View style={fillStyle} />
+        </View>
+        <View style={iconStyle}>
+          <Icon name={iconName} size={22} color="white" />
+        </View>
+      </Animated.View>
+    );
   },
 );
 
@@ -497,97 +616,6 @@ const Gestures = ({
     [SCREEN_WIDTH, disableGesture, updateSystemBrightness, updateSystemVolume],
   );
 
-  const ControlOverlay = React.memo(
-    ({
-      value,
-      isVisible,
-      isVolume,
-    }: {
-      value: number;
-      isVisible: boolean;
-      isVolume: boolean;
-    }) => {
-      const containerStyle = useMemo(
-        () => ({
-          position: 'absolute' as const,
-          top: '50%' as const,
-          marginTop: -102,
-          left: isVolume ? ('7%' as const) : undefined,
-          right: isVolume ? undefined : ('7%' as const),
-          backgroundColor: 'rgba(0, 0, 0, 0.55)',
-          borderRadius: 18,
-          width: 56,
-          paddingHorizontal: 8,
-          paddingVertical: 14,
-          alignItems: 'center' as const,
-          zIndex: 1000,
-        }),
-        [isVolume],
-      );
-
-      const textStyle = useMemo(
-        () => ({
-          color: 'white',
-          marginBottom: 9,
-          fontSize: 13,
-          fontWeight: '600' as const,
-        }),
-        [],
-      );
-
-      const trackStyle = useMemo(
-        () => ({
-          width: 6,
-          height: 120,
-          borderRadius: 3,
-          overflow: 'hidden' as const,
-          justifyContent: 'flex-end' as const,
-          backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        }),
-        [],
-      );
-
-      const fillStyle = useMemo(
-        () => ({
-          width: '100%' as const,
-          height: `${Math.round(
-            Math.max(0, Math.min(1, value)) * 100,
-          )}%` as `${number}%`,
-          borderRadius: 3,
-          backgroundColor: 'white',
-        }),
-        [value],
-      );
-
-      const iconStyle = useMemo(() => ({marginTop: 10}), []);
-
-      const iconName = useMemo(() => {
-        if (isVolume) {
-          return value === 0
-            ? 'volume-mute'
-            : value < 0.3
-            ? 'volume-down'
-            : 'volume-up';
-        }
-        return 'brightness-6';
-      }, [isVolume, value]);
-
-      if (!isVisible) return null;
-
-      return (
-        <Animated.View style={containerStyle as any}>
-          <Text style={textStyle}>{Math.round(value * 100)}%</Text>
-          <View style={trackStyle}>
-            <View style={fillStyle} />
-          </View>
-          <View style={iconStyle}>
-            <Icon name={iconName} size={22} color="white" />
-          </View>
-        </Animated.View>
-      );
-    },
-  );
-
   // Initialize and store original settings
   useEffect(() => {
     let mounted = true;
@@ -643,7 +671,6 @@ const Gestures = ({
       }
     };
   }, []);
-
 
   // Memoize container styles
   const containerStyle = useMemo(
@@ -711,27 +738,21 @@ const Gestures = ({
         .enabled(!disableGesture)
         .minDuration(450)
         .maxDistance(18)
-        .onStart(event => {
+        .onStart((event) => {
           'worklet';
           if (event.x >= SCREEN_WIDTH / 2) {
             runOnJS(setPlayback)(2);
             runOnJS(show2xToast)();
           }
         })
-        .onFinalize(event => {
+        .onFinalize((event) => {
           'worklet';
           if (event.x >= SCREEN_WIDTH / 2) {
             runOnJS(setPlayback)(1);
             runOnJS(hideToast)();
           }
         }),
-    [
-      SCREEN_WIDTH,
-      disableGesture,
-      hideToast,
-      setPlayback,
-      show2xToast,
-    ],
+    [SCREEN_WIDTH, disableGesture, hideToast, setPlayback, show2xToast],
   );
 
   const tapOrLongPressGesture = useMemo(
@@ -740,12 +761,7 @@ const Gestures = ({
   );
 
   const composedGesture = useMemo(
-    () =>
-      Gesture.Simultaneous(
-        pinchGesture,
-        panGesture,
-        tapOrLongPressGesture,
-      ),
+    () => Gesture.Simultaneous(pinchGesture, panGesture, tapOrLongPressGesture),
     [panGesture, pinchGesture, tapOrLongPressGesture],
   );
 
@@ -781,7 +797,8 @@ const Gestures = ({
           totalTime={totalSkipTime}
         />
         {toastMessage ? (
-          <Animated.View style={[toastContainerStyle as any, toastAnimatedStyle]}>
+          <Animated.View
+            style={[toastContainerStyle as any, toastAnimatedStyle]}>
             <Text style={toastTextStyle}>{toastMessage}</Text>
           </Animated.View>
         ) : null}
