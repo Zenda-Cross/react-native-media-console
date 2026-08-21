@@ -1016,6 +1016,7 @@ const AnimatedVideoPlayer = (
                     !hideAllControlls && !disablePlayPause && !disableSeekButtons
                   }
                   disableGesture={disableGesture}
+                  baseRate={rate}
                   setPlayback={setPlaybackRate}
                   clearControlTimeout={clearControlTimeout}
                   setControlTimeout={setControlTimeout}

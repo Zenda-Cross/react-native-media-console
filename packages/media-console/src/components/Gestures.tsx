@@ -41,6 +41,7 @@ type GesturesProps = {
    */
   seekButtonsEnabled?: boolean;
   disableGesture: boolean;
+  baseRate?: number;
   setPlayback: (rate: number) => void;
   clearControlTimeout: () => void;
   setControlTimeout: () => void;
@@ -319,6 +320,7 @@ const Gestures = ({
   rewindTime = 10,
   seekButtonsEnabled = false,
   disableGesture,
+  baseRate = 1,
   setPlayback,
   clearControlTimeout,
   setControlTimeout,
@@ -326,6 +328,11 @@ const Gestures = ({
   zoomStartScale,
   onSkipFeedback,
 }: GesturesProps) => {
+  const baseRateRef = useRef(baseRate);
+  useEffect(() => {
+    baseRateRef.current = baseRate;
+  }, [baseRate]);
+
   const [rippleVisible, setRippleVisible] = useState(false);
   const [isLeftRipple, setIsLeftRipple] = useState(false);
   const [totalSkipTime, setTotalSkipTime] = useState(0);
@@ -761,7 +768,8 @@ const Gestures = ({
       Gesture.LongPress()
         .enabled(!disableGesture)
         .minDuration(450)
-        .maxDistance(18)
+        .maxDistance(120)
+        .shouldCancelWhenOutside(false)
         .onStart((event) => {
           'worklet';
           if (event.x >= (gestureWidth.value || SCREEN_WIDTH) / 2) {
@@ -772,7 +780,7 @@ const Gestures = ({
         .onFinalize((event) => {
           'worklet';
           if (event.x >= (gestureWidth.value || SCREEN_WIDTH) / 2) {
-            runOnJS(setPlayback)(1);
+            runOnJS(setPlayback)(baseRateRef.current);
             runOnJS(hideToast)();
           }
         }),
